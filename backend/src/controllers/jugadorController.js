@@ -17,6 +17,7 @@ export async function listar(req, res) {
   const {
     q, posicion, disponible, nivel, pierna, nacionalidad,
     estaturaMin, estaturaMax, pesoMin, pesoMax, edadMin, edadMax,
+    golesMin, asistenciasMin, partidosMin, logrosMin,
   } = req.query;
   const where = [];
   const params = [];
@@ -37,6 +38,12 @@ export async function listar(req, res) {
   // edad → se traduce a rango de fecha de nacimiento
   if (edadMin) add("j.fecha_nacimiento <= $$", `${new Date().getFullYear() - Number(edadMin)}-12-31`);
   if (edadMax) add("j.fecha_nacimiento >= $$", `${new Date().getFullYear() - Number(edadMax)}-01-01`);
+  // estadísticas mínimas
+  if (golesMin) add("j.goles >= $$", Number(golesMin));
+  if (asistenciasMin) add("j.asistencias >= $$", Number(asistenciasMin));
+  if (partidosMin) add("j.partidos >= $$", Number(partidosMin));
+  // logros mínimos (subconsulta)
+  if (logrosMin) add("(SELECT COUNT(*) FROM logros lg WHERE lg.jugador_id = j.id) >= $$", Number(logrosMin));
 
   const sql = `
     SELECT j.id, u.nombre, j.nombres, j.apellido_paterno, j.apellido_materno, j.nacionalidad,

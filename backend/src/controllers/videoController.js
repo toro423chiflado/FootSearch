@@ -23,6 +23,12 @@ export async function subir(req, res) {
     const jugadorId = await jugadorIdDeUsuario(req.usuario.id);
     if (!jugadorId) return res.status(404).json({ error: "No tienes perfil de jugador." });
 
+    // Máximo 10 highlights por jugador
+    const actual = await MediaJugador.findOne({ jugadorId }).lean();
+    if (actual && (actual.videos?.length || 0) >= 10) {
+      return res.status(400).json({ error: "Llegaste al máximo de 10 highlights. Elimina alguno para subir otro." });
+    }
+
     const titulo = req.body.titulo || req.file?.originalname || "Video destacado";
     const nuevo = {
       titulo,

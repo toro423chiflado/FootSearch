@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 // Solo videos, máximo 100 MB
 export const subidaVideo = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("video/")) cb(null, true);
     else cb(new Error("Solo se permiten archivos de video."));

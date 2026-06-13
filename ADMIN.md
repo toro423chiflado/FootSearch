@@ -1,41 +1,63 @@
-# Endpoint de administración (privado)
-
-Las estadísticas de los jugadores (partidos, goles, asistencias, minutos) NO
-las puede editar el propio jugador. Arrancan en 0 y solo se cambian con la
-clave de administración que solo tú tienes.
+# Administrador
 
 ## Configurar tu clave
 
-En el `.env` (raíz, para docker) o `backend/.env` define:
+El backend corre en Docker, así que lee la clave del archivo `.env` de la
+**raíz** del proyecto (NO de `backend/.env`).
 
-    ADMIN_KEY=pon_aqui_una_clave_larga_y_secreta
+1. En la raíz del proyecto, crea o edita `.env`:
 
-Genera una segura con:  `openssl rand -hex 24`
+       ADMIN_KEY=mi_clave_secreta_123
 
-## Listar jugadores (para obtener sus IDs)
+2. Reinicia el contenedor para que tome el cambio:
 
-    curl http://localhost:4000/api/admin/jugadores \
-      -H "x-admin-key: TU_CLAVE"
+       docker compose up -d --force-recreate backend
 
-Devuelve id, nombre y estadísticas actuales de cada jugador.
+3. Comprueba que quedó bien:
 
-## Editar estadísticas de un jugador
+       docker exec footsearch_backend printenv ADMIN_KEY
 
-    curl -X PUT http://localhost:4000/api/admin/jugadores/ID_DEL_JUGADOR/estadisticas \
-      -H "Content-Type: application/json" \
-      -H "x-admin-key: TU_CLAVE" \
-      -d '{"partidos": 20, "goles": 15, "asistencias": 7, "minutos": 1700}'
+   Debe imprimir tu clave.
 
-- Puedes enviar solo los campos que quieras cambiar.
-- Sin la cabecera `x-admin-key` correcta, responde 401 (nadie más puede tocarlas).
+## Entrar desde Postman (paso a paso)
 
-## Códigos de club (IDs de un solo uso)
+1. Method: `GET`
+2. URL: `http://localhost:4000/api/admin/usuarios`
+3. Pestaña **Headers** → agrega una fila:
+   - Key: `x-admin-key`
+   - Value: `mi_clave_secreta_123`  (tu clave, exacta, sin espacios)
+4. **Send**. Debe devolver la lista de usuarios.
 
-El seed genera 1000 códigos con formato `FS-XXXX-XXXX-XXXX`. Para ver los
-disponibles directamente en la base de datos:
+Si da 401: la clave del header no coincide con la del servidor (paso 3 de arriba).
+Si da 500 "ADMIN_KEY no configurada": no reiniciaste el contenedor.
 
-    -- dentro de psql / el contenedor de postgres
-    SELECT codigo FROM codigos_club WHERE usado = false LIMIT 20;
+## Comandos
 
-Cada código sirve una sola vez: al registrar un club queda marcado como usado
-y crea el club automáticamente. Si alguien intenta reutilizarlo, recibe error.
+Cambia `CLAVE` por tu clave y los `ID_*` por los que obtengas al listar.
+
+Listar usuarios:
+    GET http://localhost:4000/api/admin/usuarios
+    GET http://localhost:4000/api/admin/usuarios?tipo=jugador
+    GET http://localhost:4000/api/admin/usuarios?tipo=club
+    GET http://localhost:4000/api/admin/usuarios?tipo=cazatalentos
+
+Listar clubes / jugadores / licencias:
+    GET http://localhost:4000/api/admin/clubes
+    GET http://localhost:4000/api/admin/jugadores
+    GET http://localhost:4000/api/admin/licencias?estado=libres&limit=100
+
+Editar estadísticas:
+    PUT http://localhost:4000/api/admin/jugadores/ID_JUGADOR/estadisticas
+    Body (raw JSON): {"partidos":20,"goles":15,"asistencias":7,"minutos":1700}
+
+Logros:
+    GET    http://localhost:4000/api/admin/jugadores/ID_JUGADOR/logros
+    POST   http://localhost:4000/api/admin/jugadores/ID_JUGADOR/logros   Body: {"titulo":"Campeón 2025"}
+    DELETE http://localhost:4000/api/admin/logros/ID_LOGRO
+
+Eliminar:
+    DELETE http://localhost:4000/api/admin/usuarios/ID_USUARIO
+    DELETE http://localhost:4000/api/admin/clubes/ID_CLUB
+
+> Todas las peticiones llevan el header `x-admin-key: TU_CLAVE`.
+> Para POST y PUT: Body → raw → JSON.

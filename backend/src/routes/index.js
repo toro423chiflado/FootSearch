@@ -51,5 +51,14 @@ router.post("/favoritos/:jugadorId", requiereAuth, requiereTipo("cazatalentos", 
 router.get("/admin/jugadores", requiereAdmin, admin.listarParaAdmin);
 router.get("/admin/licencias", requiereAdmin, admin.listarLicencias);
 router.put("/admin/jugadores/:id/estadisticas", requiereAdmin, admin.editarEstadisticas);
+// logros
+router.get("/admin/jugadores/:id/logros", requiereAdmin, admin.listarLogros);
+router.post("/admin/jugadores/:id/logros", requiereAdmin, admin.agregarLogro);
+router.delete("/admin/logros/:logroId", requiereAdmin, admin.eliminarLogro);
+// usuarios y clubes (listar / eliminar)
+router.get("/admin/usuarios", requiereAdmin, admin.listarUsuarios);
+router.get("/admin/clubes", requiereAdmin, admin.listarClubesAdmin);
+router.delete("/admin/usuarios/:id", requiereAdmin, admin.eliminarUsuario);
+router.delete("/admin/clubes/:id", requiereAdmin, admin.eliminarClub);
 
 export default router;
