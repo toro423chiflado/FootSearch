@@ -69,8 +69,21 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
   }
   async function subirVideo(file) {
     if (!file) return;
+    setError("");
+    // Validar duración máxima (30 segundos) leyendo metadata del video
+    const dur = await new Promise((resolve) => {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration); };
+      v.onerror = () => resolve(null);
+      v.src = URL.createObjectURL(file);
+    });
+    if (dur && dur > 30.5) {
+      setError(`El highlight dura ${Math.round(dur)}s. El máximo permitido es 30 segundos.`);
+      return;
+    }
     const fd = new FormData(); fd.append("video", file); fd.append("titulo", tituloVideo || file.name);
-    try { await api.subirVideo(fd); flash("Video subido."); setTituloVideo(""); await cargar(); }
+    try { await api.subirVideo(fd); flash("Highlight subido."); setTituloVideo(""); await cargar(); }
     catch (e) { setError(e.message); }
   }
   async function borrarVideo(id) { try { await api.eliminarVideo(id); await cargar(); } catch (e) { setError(e.message); } }
@@ -168,6 +181,7 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
 
           <div className="card bloque">
             <h3>Highlights</h3>
+            <div className="ayuda" style={{ marginBottom: 10 }}>Máximo 10 highlights · hasta 30 segundos cada uno.</div>
             <div className="subir-video">
               <input type="text" placeholder="Nombre del highlight" value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
               <button className="btn btn-fantasma btn-sm" onClick={() => videoRef.current.click()}>Subir</button>

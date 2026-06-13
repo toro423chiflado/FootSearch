@@ -31,33 +31,42 @@ export default function PerfilJugador({ id, usuario, volver, verClub, favoritos,
   const videos = datos.videos || [];
   const puedeContactar = usuario.tipo !== "jugador";
   const esFav = favoritos.includes(j.id);
+  const fotoPerfil = urlMedia(j.foto_perfil);
+  const fotoPortada = urlMedia(j.foto_portada);
 
   return (
     <main className="contenedor perfil">
       <button className="perfil-volver" onClick={volver}>&larr; Volver a la busqueda</button>
 
-      <div className="card perfil-head">
-        <div className="foto-g" style={{ background: colorDe(j.nombre) }}>{iniciales(j.nombre)}</div>
-        <div>
-          <h1>{j.nombre}</h1>
-          <div className="sub">{j.posicion || "Sin posicion"} - {j.ciudad || "Peru"}{j.club_nombre ? ` - ${j.club_nombre}` : " - Sin club"}</div>
-          <div className="badges">
-            <span className={"badge " + (j.disponible ? "badge-disp" : "badge-nodisp")}>
-              {j.disponible ? "Disponible para pruebas" : "No disponible"}
-            </span>
-            <span className={"badge " + (j.profesional ? "badge-pro" : "badge-ama")}>
-              {j.profesional ? "Profesional" : "Amateur"}
-            </span>
+      <div className="card hero-perfil">
+        <div className="hp-portada" style={fotoPortada ? { backgroundImage: `linear-gradient(180deg, rgba(22,24,29,.1), rgba(22,24,29,.85)), url(${fotoPortada})` } : {}} />
+        <div className="hp-cuerpo">
+          <div className="hp-avatar-wrap">
+            {fotoPerfil
+              ? <img className="hp-avatar" src={fotoPerfil} alt="perfil" />
+              : <div className="hp-avatar" style={{ background: colorDe(j.nombre) }}>{iniciales(j.nombre)}</div>}
           </div>
+          <div className="hp-info">
+            <h1>{j.nombre}</h1>
+            <div className="hp-sub">{j.posicion || "Sin posición"}{j.nacionalidad ? ` · ${j.nacionalidad}` : ""}{j.ciudad ? ` · ${j.ciudad}` : ""}{j.club_nombre ? ` · ${j.club_nombre}` : ""}</div>
+            <div className="badges" style={{ marginTop: 10 }}>
+              <span className={"badge " + (j.disponible ? "badge-disp" : "badge-nodisp")}>
+                {j.disponible ? "Disponible para pruebas" : "No disponible"}
+              </span>
+              <span className={"badge " + (j.profesional ? "badge-pro" : "badge-ama")}>
+                {j.profesional ? "Profesional" : "Amateur"}
+              </span>
+            </div>
+          </div>
+          {puedeContactar && (
+            <div className="perfil-acciones">
+              <button className="btn btn-rojo" onClick={() => setModal(true)}>Contactar</button>
+              <button className={"btn " + (esFav ? "btn-dorado" : "btn-fantasma")} onClick={() => toggleFav(j.id)}>
+                <IconEstrella size={16} llena={esFav} /> {esFav ? "Guardado" : "Guardar"}
+              </button>
+            </div>
+          )}
         </div>
-        {puedeContactar && (
-          <div className="perfil-acciones">
-            <button className="btn btn-rojo" onClick={() => setModal(true)}>Contactar</button>
-            <button className={"btn " + (esFav ? "btn-dorado" : "btn-fantasma")} onClick={() => toggleFav(j.id)}>
-              <IconEstrella size={16} llena={esFav} /> {esFav ? "Guardado" : "Guardar"}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="perfil-grid">
