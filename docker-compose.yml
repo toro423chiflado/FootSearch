@@ -1,0 +1,89 @@
+# ============================================================
+#  FootSearch — orquestación local con datos persistentes
+#
+#  Levanta todo con:   docker compose up -d
+#  Los datos persisten en los volúmenes de abajo (pg_data,
+#  mongo_data, uploads_data) aunque borres o actualices los
+#  contenedores. Solo se borran con `docker compose down -v`.
+# ============================================================
+
+services:
+  # ---------- Base de datos relacional ----------
+  postgres:
+    image: postgres:16-alpine
+    container_name: footsearch_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-footsearch}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-footsearch_secret}
+      POSTGRES_DB: ${PG_DATABASE:-footsearch}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # El schema se aplica solo la PRIMERA vez (cuando el volumen está vacío)
+      - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-footsearch} -d ${PG_DATABASE:-footsearch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- Base de datos no relacional ----------
+  mongo:
+    image: mongo:7
+    container_name: footsearch_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-footsearch}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-footsearch_secret}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- API (backend) ----------
+  backend:
+    # Para uso LOCAL: construye la imagen desde tu código.
+    build: ./backend
+    # Para DESPLIEGUE desde Docker Hub: comenta la línea `build` de arriba
+    # y descomenta `image` (reemplaza TU_USUARIO por tu usuario de Docker Hub):
+    # image: TU_USUARIO/footsearch-backend:latest
+    container_name: footsearch_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      # OJO: dentro de la red de Docker, el host NO es localhost,
+      # sino el nombre del servicio (postgres / mongo).
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER:-footsearch}
+      PG_PASSWORD: ${PG_PASSWORD:-footsearch_secret}
+      PG_DATABASE: ${PG_DATABASE:-footsearch}
+      MONGO_URI: mongodb://${MONGO_USER:-footsearch}:${MONGO_PASSWORD:-footsearch_secret}@mongo:27017/footsearch?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-cambia_esto_por_un_secreto_largo_y_aleatorio}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:5173}
+      SEED_ON_START: ${SEED_ON_START:-false}
+      ADMIN_KEY: ${ADMIN_KEY:-clave_admin_super_secreta_cambiala}
+    ports:
+      - "4000:4000"
+    volumes:
+      # Los videos subidos persisten aquí, fuera del contenedor
+      - uploads_data:/app/uploads
+
+volumes:
+  pg_data:
+  mongo_data:
+  uploads_data:
