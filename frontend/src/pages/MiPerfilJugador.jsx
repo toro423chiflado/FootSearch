@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { api } from "../services/api";
 import { colorDe, iniciales } from "../components/Componentes";
 import { IconPlay, IconTrofeo } from "../components/Iconos";
+import { CampoEditable, IconLapiz } from "../components/CampoEditable";
 
 const POSICIONES = [
   "Portero", "Lateral derecho", "Lateral izquierdo", "Defensa central",
@@ -10,7 +11,6 @@ const POSICIONES = [
 ];
 const PIERNAS = ["Derecha", "Izquierda", "Ambas"];
 const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").replace("/api", "");
-
 function urlMedia(p) { return p ? (p.startsWith("http") ? p : API_BASE + p) : null; }
 function edadDesde(fecha) {
   if (!fecha) return null;
@@ -23,12 +23,10 @@ function edadDesde(fecha) {
 
 export default function MiPerfilJugador({ volver, onActualizar }) {
   const [me, setMe] = useState(null);
-  const [datos, setDatos] = useState(null);     // detalle (videos, logros)
+  const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
-  const [guardando, setGuardando] = useState(false);
-  const [f, setF] = useState({});
   const [tituloVideo, setTituloVideo] = useState("");
   const fotoRef = useRef(), portadaRef = useRef(), videoRef = useRef();
 
@@ -37,76 +35,43 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
     try {
       const meData = await api.me();
       setMe(meData);
-      const j = meData.jugador;
-      setF({
-        nombres: j.nombres || "", apellidoPaterno: j.apellido_paterno || "",
-        apellidoMaterno: j.apellido_materno || "", nacionalidad: j.nacionalidad || "",
-        fechaNacimiento: j.fecha_nacimiento ? j.fecha_nacimiento.slice(0, 10) : "",
-        posicion: j.posicion || "", pierna: j.pierna || "",
-        estatura: j.estatura_cm || "", peso: j.peso_kg || "",
-        ciudad: j.ciudad || "", bio: j.bio || "",
-        disponible: j.disponible, profesional: j.profesional,
-      });
-      const det = await api.jugador(j.id);
+      const det = await api.jugador(meData.jugador.id);
       setDatos(det);
     } catch (e) { setError(e.message); }
     finally { setCargando(false); }
   }
   useEffect(() => { cargar(); }, []);
 
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const toggle = (k) => () => setF({ ...f, [k]: !f[k] });
+  function flash(t) { setMsg(t); setTimeout(() => setMsg(""), 2500); }
 
-  async function guardar() {
-    setGuardando(true); setMsg(""); setError("");
-    try {
-      await api.actualizarMiPerfil({
-        nombres: f.nombres, apellidoPaterno: f.apellidoPaterno, apellidoMaterno: f.apellidoMaterno,
-        nacionalidad: f.nacionalidad, fechaNacimiento: f.fechaNacimiento || null,
-        posicion: f.posicion, pierna: f.pierna,
-        estatura: f.estatura ? Number(f.estatura) : null,
-        peso: f.peso ? Number(f.peso) : null,
-        ciudad: f.ciudad, bio: f.bio,
-        disponible: f.disponible, profesional: f.profesional,
-      });
-      setMsg("Perfil actualizado correctamente.");
-      onActualizar && onActualizar();
-      cargar();
-    } catch (e) { setError(e.message); }
-    finally { setGuardando(false); }
+  async function guardarCampo(campo, valor) {
+    await api.actualizarMiPerfil({ [campo]: valor === "" ? null : valor });
+    flash("Guardado.");
+    onActualizar && onActualizar();
+    await cargar();
   }
-
+  async function toggleDisponible() {
+    await api.actualizarMiPerfil({ disponible: !me.jugador.disponible });
+    onActualizar && onActualizar();
+    await cargar();
+  }
+  async function toggleNivel() {
+    await api.actualizarMiPerfil({ profesional: !me.jugador.profesional });
+    await cargar();
+  }
   async function subirImagen(campo, file) {
     if (!file) return;
-    setMsg(""); setError("");
-    const fd = new FormData();
-    fd.append(campo, file);
-    try {
-      await api.subirImagenesJugador(fd);
-      setMsg("Imagen actualizada.");
-      onActualizar && onActualizar();
-      cargar();
-    } catch (e) { setError(e.message); }
-  }
-
-  async function subirVideo(file) {
-    if (!file) return;
-    setMsg(""); setError("");
-    const fd = new FormData();
-    fd.append("video", file);
-    fd.append("titulo", tituloVideo || file.name);
-    try {
-      await api.subirVideo(fd);
-      setMsg("Video subido.");
-      setTituloVideo("");
-      cargar();
-    } catch (e) { setError(e.message); }
-  }
-
-  async function borrarVideo(videoId) {
-    try { await api.eliminarVideo(videoId); cargar(); }
+    const fd = new FormData(); fd.append(campo, file);
+    try { await api.subirImagenesJugador(fd); flash("Imagen actualizada."); onActualizar && onActualizar(); await cargar(); }
     catch (e) { setError(e.message); }
   }
+  async function subirVideo(file) {
+    if (!file) return;
+    const fd = new FormData(); fd.append("video", file); fd.append("titulo", tituloVideo || file.name);
+    try { await api.subirVideo(fd); flash("Video subido."); setTituloVideo(""); await cargar(); }
+    catch (e) { setError(e.message); }
+  }
+  async function borrarVideo(id) { try { await api.eliminarVideo(id); await cargar(); } catch (e) { setError(e.message); } }
 
   if (cargando) return <main className="contenedor perfil"><p style={{ color: "var(--gris)" }}>Cargando tu perfil...</p></main>;
   if (error && !me) return <main className="contenedor perfil"><div className="aviso err">{error}</div></main>;
@@ -114,106 +79,74 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
   const j = me.jugador;
   const videos = datos?.videos || [];
   const logros = datos?.logros || [];
-  const edad = edadDesde(f.fechaNacimiento);
+  const edad = edadDesde(j.fecha_nacimiento);
   const fotoPerfil = urlMedia(j.foto_perfil);
   const fotoPortada = urlMedia(j.foto_portada);
+  const nombreCompleto = [j.nombres, j.apellido_paterno, j.apellido_materno].filter(Boolean).join(" ");
 
   return (
     <main className="contenedor perfil">
       <button className="perfil-volver" onClick={volver}>&larr; Volver</button>
-
-      {msg && <div className="aviso" style={{ marginBottom: 16 }}>{msg}</div>}
+      {msg && <div className="toast-ok">{msg}</div>}
       {error && <div className="aviso err" style={{ marginBottom: 16 }}>{error}</div>}
 
-      {/* Portada + foto de perfil editables */}
-      <div className="card perfil-cabecera">
-        <div className="portada" style={fotoPortada ? { backgroundImage: `url(${fotoPortada})` } : {}}>
-          <button className="btn-foto portada-btn" onClick={() => portadaRef.current.click()}>Cambiar portada</button>
-          <input ref={portadaRef} type="file" accept="image/*" hidden
-            onChange={(e) => subirImagen("foto_portada", e.target.files[0])} />
+      {/* Cabecera atractiva */}
+      <div className="card hero-perfil">
+        <div className="hp-portada" style={fotoPortada ? { backgroundImage: `linear-gradient(180deg, rgba(22,24,29,.1), rgba(22,24,29,.85)), url(${fotoPortada})` } : {}}>
+          <button className="btn-foto portada-btn" onClick={() => portadaRef.current.click()}><IconLapiz size={13} /> Portada</button>
+          <input ref={portadaRef} type="file" accept="image/*" hidden onChange={(e) => subirImagen("foto_portada", e.target.files[0])} />
         </div>
-        <div className="cabecera-info">
-          <div className="avatar-grande-wrap">
+        <div className="hp-cuerpo">
+          <div className="hp-avatar-wrap">
             {fotoPerfil
-              ? <img className="avatar-grande" src={fotoPerfil} alt="perfil" />
-              : <div className="avatar-grande" style={{ background: colorDe(j.nombres || "J") }}>{iniciales((f.nombres || "") + " " + (f.apellidoPaterno || ""))}</div>}
-            <button className="btn-foto avatar-btn" onClick={() => fotoRef.current.click()}>Editar</button>
-            <input ref={fotoRef} type="file" accept="image/*" hidden
-              onChange={(e) => subirImagen("foto_perfil", e.target.files[0])} />
+              ? <img className="hp-avatar" src={fotoPerfil} alt="perfil" />
+              : <div className="hp-avatar" style={{ background: colorDe(nombreCompleto) }}>{iniciales(nombreCompleto)}</div>}
+            <button className="hp-avatar-edit" onClick={() => fotoRef.current.click()} title="Cambiar foto"><IconLapiz size={14} /></button>
+            <input ref={fotoRef} type="file" accept="image/*" hidden onChange={(e) => subirImagen("foto_perfil", e.target.files[0])} />
           </div>
-          <div className="cabecera-datos">
-            <h1>{[f.nombres, f.apellidoPaterno, f.apellidoMaterno].filter(Boolean).join(" ") || "Tu nombre"}</h1>
-            <div className="sub">{f.posicion || "Posicion"}{f.nacionalidad ? ` · ${f.nacionalidad}` : ""}{edad !== null ? ` · ${edad} años` : ""}</div>
-            <div className="toggle-disp">
-              <span>Disponibilidad:</span>
-              <button className={"chip-toggle " + (f.disponible ? "on" : "")} onClick={toggle("disponible")}>
-                {f.disponible ? "● Disponible para pruebas" : "○ No disponible"}
-              </button>
+          <div className="hp-info">
+            <h1>{nombreCompleto || "Tu nombre"}</h1>
+            <div className="hp-sub">{j.posicion || "Posición"}{j.nacionalidad ? ` · ${j.nacionalidad}` : ""}{j.ciudad ? ` · ${j.ciudad}` : ""}</div>
+            <div className="hp-chips">
+              {edad !== null && <span className="hp-chip"><b>{edad}</b> años</span>}
+              {j.estatura_cm && <span className="hp-chip"><b>{j.estatura_cm}</b> cm</span>}
+              {j.peso_kg && <span className="hp-chip"><b>{j.peso_kg}</b> kg</span>}
+              {j.pierna && <span className="hp-chip">{j.pierna}</span>}
             </div>
+          </div>
+          <div className="hp-estado">
+            <button className={"chip-toggle " + (j.disponible ? "on" : "")} onClick={toggleDisponible}>
+              {j.disponible ? "● Disponible" : "○ No disponible"}
+            </button>
+            <button className={"chip-toggle " + (j.profesional ? "on-dorado" : "")} onClick={toggleNivel}>
+              {j.profesional ? "Profesional" : "Amateur"}
+            </button>
           </div>
         </div>
       </div>
 
       <div className="perfil-grid">
-        {/* Edición de datos */}
         <div>
           <div className="card bloque">
             <h3>Datos personales</h3>
-            <div className="fila">
-              <div className="campo"><label>Nombres</label><input value={f.nombres} onChange={set("nombres")} /></div>
-              <div className="campo"><label>Ap. paterno</label><input value={f.apellidoPaterno} onChange={set("apellidoPaterno")} /></div>
-            </div>
-            <div className="fila">
-              <div className="campo"><label>Ap. materno</label><input value={f.apellidoMaterno} onChange={set("apellidoMaterno")} /></div>
-              <div className="campo"><label>Nacionalidad</label><input value={f.nacionalidad} onChange={set("nacionalidad")} /></div>
-            </div>
-            <div className="campo">
-              <label>Fecha de nacimiento</label>
-              <div className="fecha-edad">
-                <input type="date" value={f.fechaNacimiento} onChange={set("fechaNacimiento")} max={new Date().toISOString().slice(0,10)} />
-                {edad !== null && <div className="edad-pill"><span className="edad-num">{edad}</span><span className="edad-lbl">años</span></div>}
-              </div>
-            </div>
-            <div className="campo"><label>Ciudad</label><input value={f.ciudad} onChange={set("ciudad")} /></div>
+            <CampoEditable etiqueta="Nombres" valor={j.nombres} onGuardar={(v) => guardarCampo("nombres", v)} />
+            <CampoEditable etiqueta="Apellido paterno" valor={j.apellido_paterno} onGuardar={(v) => guardarCampo("apellidoPaterno", v)} />
+            <CampoEditable etiqueta="Apellido materno" valor={j.apellido_materno} onGuardar={(v) => guardarCampo("apellidoMaterno", v)} />
+            <CampoEditable etiqueta="Nacionalidad" valor={j.nacionalidad} onGuardar={(v) => guardarCampo("nacionalidad", v)} />
+            <CampoEditable etiqueta="Fecha de nacimiento" tipo="date" valor={j.fecha_nacimiento ? j.fecha_nacimiento.slice(0,10) : ""} onGuardar={(v) => guardarCampo("fechaNacimiento", v)} />
+            <CampoEditable etiqueta="Ciudad" valor={j.ciudad} onGuardar={(v) => guardarCampo("ciudad", v)} />
           </div>
 
           <div className="card bloque">
             <h3>Datos físicos y deportivos</h3>
-            <div className="fila">
-              <div className="campo"><label>Estatura (cm)</label><input type="number" value={f.estatura} onChange={set("estatura")} /></div>
-              <div className="campo"><label>Peso (kg)</label><input type="number" value={f.peso} onChange={set("peso")} /></div>
-            </div>
-            <div className="fila">
-              <div className="campo">
-                <label>Posicion</label>
-                <select value={f.posicion} onChange={set("posicion")}>
-                  <option value="">Selecciona...</option>
-                  {POSICIONES.map((p) => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div className="campo">
-                <label>Pierna</label>
-                <select value={f.pierna} onChange={set("pierna")}>
-                  <option value="">Selecciona...</option>
-                  {PIERNAS.map((p) => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="campo">
-              <label>Nivel</label>
-              <button className={"chip-toggle " + (f.profesional ? "on" : "")} onClick={toggle("profesional")}>
-                {f.profesional ? "Profesional" : "Amateur"}
-              </button>
-            </div>
-            <div className="campo"><label>Sobre mi</label><textarea rows={3} value={f.bio} onChange={set("bio")} /></div>
+            <CampoEditable etiqueta="Estatura" tipo="number" sufijo=" cm" valor={j.estatura_cm} onGuardar={(v) => guardarCampo("estatura", v ? Number(v) : null)} />
+            <CampoEditable etiqueta="Peso" tipo="number" sufijo=" kg" valor={j.peso_kg} onGuardar={(v) => guardarCampo("peso", v ? Number(v) : null)} />
+            <CampoEditable etiqueta="Posición" tipo="select" opciones={POSICIONES} valor={j.posicion} onGuardar={(v) => guardarCampo("posicion", v)} />
+            <CampoEditable etiqueta="Pierna dominante" tipo="select" opciones={PIERNAS} valor={j.pierna} onGuardar={(v) => guardarCampo("pierna", v)} />
+            <CampoEditable etiqueta="Sobre mí (descripción)" tipo="textarea" valor={j.bio} placeholder="Cuéntale a los scouts cómo juegas..." onGuardar={(v) => guardarCampo("bio", v)} />
           </div>
-
-          <button className="btn btn-rojo btn-bloque" onClick={guardar} disabled={guardando}>
-            {guardando ? "Guardando..." : "Guardar cambios"}
-          </button>
         </div>
 
-        {/* Estadísticas (solo lectura) + multimedia */}
         <div>
           <div className="card bloque">
             <h3>Estadísticas</h3>
@@ -230,19 +163,18 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
             <h3>Videos / multimedia</h3>
             <div className="subir-video">
               <input type="text" placeholder="Título del video" value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
-              <button className="btn btn-fantasma btn-sm" onClick={() => videoRef.current.click()}>Subir video</button>
+              <button className="btn btn-fantasma btn-sm" onClick={() => videoRef.current.click()}>Subir</button>
               <input ref={videoRef} type="file" accept="video/*" hidden onChange={(e) => subirVideo(e.target.files[0])} />
             </div>
-            {videos.length === 0 ? (
-              <p style={{ color: "var(--gris)", fontSize: 14, marginTop: 10 }}>Aún no has subido videos.</p>
-            ) : videos.map((v) => (
-              <div className="video-item" key={v._id}>
-                <div className="play"><IconPlay /></div>
-                <span style={{ flex: 1 }}>{v.titulo}</span>
-                {v.url && <a className="ver-link" href={urlMedia(v.url)} target="_blank" rel="noreferrer">ver</a>}
-                <button className="borrar-x" onClick={() => borrarVideo(v._id)}>✕</button>
-              </div>
-            ))}
+            {videos.length === 0 ? <p style={{ color: "var(--gris)", fontSize: 14, marginTop: 10 }}>Aún no has subido videos.</p>
+              : videos.map((v) => (
+                <div className="video-item" key={v._id}>
+                  <div className="play"><IconPlay /></div>
+                  <span style={{ flex: 1 }}>{v.titulo}</span>
+                  {v.url && <a className="ver-link" href={urlMedia(v.url)} target="_blank" rel="noreferrer">ver</a>}
+                  <button className="borrar-x" onClick={() => borrarVideo(v._id)}>✕</button>
+                </div>
+              ))}
           </div>
 
           <div className="card bloque">

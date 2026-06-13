@@ -6,7 +6,7 @@ import { MediaJugador } from "../models/MediaJugador.js";
 import mongoose from "mongoose";
 
 // Genera un código de club complejo: FS-XXXX-XXXX-XXXX (sin caracteres ambiguos)
-const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin O,0,I,1,L
+const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function generarCodigo() {
   const bloque = () => Array.from({ length: 4 },
     () => ALFABETO[crypto.randomInt(ALFABETO.length)]).join("");
@@ -15,24 +15,24 @@ function generarCodigo() {
 
 const fechaNac = (edad) => `${new Date().getFullYear() - edad}-06-15`;
 
-// Jugadores demo (estadísticas en 0 según lo pedido; se editan por endpoint admin)
+// ---- Pocos jugadores demo (estadísticas en 0; se editan por endpoint admin) ----
 const JUGADORES = [
-  { nombres: "Diego", apPaterno: "Quispe", apMaterno: "Mamani", nacionalidad: "Perú", edad: 19, posicion: "Delantero centro", estatura: 178, peso: 72, pierna: "Derecha", ciudad: "Cusco", disponible: true, profesional: false, bio: "Delantero rápido con olfato de gol.", logros: ["Goleador Liga 2 sub-20"], videos: ["Hat-trick vs rival regional"] },
-  { nombres: "Mateo", apPaterno: "Flores", apMaterno: "Ramos", nacionalidad: "Perú", edad: 23, posicion: "Mediocampista central", estatura: 175, peso: 70, pierna: "Izquierda", ciudad: "Lima", disponible: false, profesional: true, bio: "Volante de creación con buena visión.", logros: ["Campeón Liga 1 2024"], videos: ["Asistencia de taco"] },
-  { nombres: "Luis", apPaterno: "Mendoza", apMaterno: "Vargas", nacionalidad: "Perú", edad: 17, posicion: "Extremo izquierdo", estatura: 170, peso: 64, pierna: "Derecha", ciudad: "Arequipa", disponible: true, profesional: false, bio: "Joven talento amateur.", logros: ["MVP juvenil 2025"], videos: ["Regate y gol"] },
-  { nombres: "Carlos", apPaterno: "Rojas", apMaterno: "Díaz", nacionalidad: "Perú", edad: 28, posicion: "Defensa central", estatura: 188, peso: 84, pierna: "Derecha", ciudad: "Lima", disponible: false, profesional: true, bio: "Central experimentado y líder.", logros: ["Capitán 2023-2025"], videos: ["Despeje salvador"] },
-  { nombres: "Andrés", apPaterno: "Huamán", apMaterno: "Soto", nacionalidad: "Perú", edad: 21, posicion: "Portero", estatura: 190, peso: 82, pierna: "Derecha", ciudad: "Cusco", disponible: true, profesional: true, bio: "Portero ágil, abierto a propuestas.", logros: ["Valla menos vencida 2024"], videos: ["Triple atajada"] },
-  { nombres: "Sebastián", apPaterno: "Ríos", apMaterno: "León", nacionalidad: "Perú", edad: 20, posicion: "Lateral derecho", estatura: 176, peso: 71, pierna: "Derecha", ciudad: "Lima", disponible: true, profesional: true, bio: "Lateral con proyección ofensiva.", logros: ["Revelación 2024"], videos: ["Centro para el gol"] },
-  { nombres: "Joaquín", apPaterno: "Vega", apMaterno: "Castro", nacionalidad: "Perú", edad: 18, posicion: "Mediocampista ofensivo", estatura: 173, peso: 67, pierna: "Izquierda", ciudad: "Trujillo", disponible: true, profesional: false, bio: "Enganche zurdo y creativo.", logros: ["Goleador liga norte 2025"], videos: ["Tiro libre"] },
-  { nombres: "Renato", apPaterno: "Paredes", apMaterno: "Gómez", nacionalidad: "Perú", edad: 25, posicion: "Delantero centro", estatura: 182, peso: 78, pierna: "Derecha", ciudad: "Arequipa", disponible: false, profesional: true, bio: "Nueve de área contundente.", logros: ["Botín de oro 2023"], videos: ["4 goles en un partido"] },
+  { correo: "diego@demo.pe",   nombres: "Diego",  apPaterno: "Quispe",   apMaterno: "Mamani", nacionalidad: "Perú", edad: 19, posicion: "Delantero centro",       estatura: 178, peso: 72, pierna: "Derecha",   ciudad: "Cusco",    disponible: true,  profesional: false, bio: "Delantero rápido con olfato de gol. Busca dar el salto a primera.", logros: ["Goleador Liga 2 sub-20"], videos: ["Hat-trick vs rival regional"] },
+  { correo: "luis@demo.pe",    nombres: "Luis",   apPaterno: "Mendoza",  apMaterno: "Vargas", nacionalidad: "Perú", edad: 17, posicion: "Extremo izquierdo",       estatura: 170, peso: 64, pierna: "Derecha",   ciudad: "Arequipa", disponible: true,  profesional: false, bio: "Joven talento amateur que busca su primera oportunidad.",            logros: ["MVP juvenil 2025"],     videos: ["Regate y gol"] },
+  { correo: "andres@demo.pe",  nombres: "Andrés", apPaterno: "Huamán",   apMaterno: "Soto",   nacionalidad: "Perú", edad: 21, posicion: "Portero",                 estatura: 190, peso: 82, pierna: "Derecha",   ciudad: "Cusco",    disponible: true,  profesional: true,  bio: "Portero ágil con buen juego de pies. Abierto a propuestas.",       logros: ["Valla menos vencida 2024"], videos: ["Triple atajada"] },
+  { correo: "joaquin@demo.pe", nombres: "Joaquín",apPaterno: "Vega",     apMaterno: "Castro", nacionalidad: "Perú", edad: 18, posicion: "Mediocampista ofensivo",  estatura: 173, peso: 67, pierna: "Izquierda", ciudad: "Trujillo", disponible: true,  profesional: false, bio: "Enganche zurdo, creativo, busca club que apueste por jóvenes.",     logros: ["Goleador liga norte 2025"], videos: ["Tiro libre"] },
 ];
 
-// Genera N códigos únicos y los inserta. Devuelve algunos de muestra.
+// ---- Clubes poco conocidos, ya creados, con su cuenta de acceso ----
+const CLUBES = [
+  { correo: "atletico.condores@demo.pe", nombre: "Atlético Cóndores FC", ciudad: "Huaraz",      fundado: 2014, color: "#1F7A4D", iniciales: "ACF", descripcion: "Club de altura formador de talento ancashino." },
+  { correo: "deportivo.manglar@demo.pe", nombre: "Deportivo Manglar",     ciudad: "Tumbes",      fundado: 2009, color: "#0E6E8C", iniciales: "DM",  descripcion: "Cantera norteña con identidad ofensiva." },
+];
+
 export async function generarCodigosClub(cliente, cantidad = 1000) {
   const set = new Set();
   while (set.size < cantidad) set.add(generarCodigo());
   const codigos = [...set];
-  // Inserción por lotes
   const LOTE = 200;
   for (let i = 0; i < codigos.length; i += LOTE) {
     const trozo = codigos.slice(i, i + LOTE);
@@ -53,42 +53,73 @@ export async function sembrar({ gestionarConexion = true } = {}) {
     console.log("Generando 1000 códigos de club…");
     const codigos = await generarCodigosClub(c, 1000);
 
+    const pass = "demo1234";
+    const hash = await bcrypt.hash(pass, 10);
+
+    // ---- Clubes (creados + cuenta de acceso, consumiendo un código) ----
+    console.log("Insertando clubes demo…");
+    const clubPorNombre = {};
+    for (let i = 0; i < CLUBES.length; i++) {
+      const cl = CLUBES[i];
+      const codigo = codigos[i]; // consume un código del pool
+      const clubRow = await c.query(
+        `INSERT INTO clubes (codigo, nombre, ciudad, fundado, color, iniciales, descripcion)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [codigo, cl.nombre, cl.ciudad, cl.fundado, cl.color, cl.iniciales, cl.descripcion]
+      );
+      const clubId = clubRow.rows[0].id;
+      clubPorNombre[cl.nombre] = clubId;
+      await c.query("UPDATE codigos_club SET usado=true, usado_por=$1, usado_en=now() WHERE codigo=$2", [clubId, codigo]);
+      const u = await c.query(
+        "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'club',$3) RETURNING id",
+        [cl.correo, hash, cl.nombre]
+      );
+      await c.query("INSERT INTO cuentas_club (usuario_id, club_id) VALUES ($1,$2)", [u.rows[0].id, clubId]);
+    }
+
+    // ---- Jugadores (algunos asignados a los clubes demo) ----
     console.log("Insertando jugadores demo (estadísticas en 0)…");
-    const hash = await bcrypt.hash("demo1234", 10);
+    const asignacion = { "diego@demo.pe": "Atlético Cóndores FC", "andres@demo.pe": "Deportivo Manglar" };
     for (const j of JUGADORES) {
       const nombre = [j.nombres, j.apPaterno, j.apMaterno].filter(Boolean).join(" ");
-      const correo = nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, ".") + "@footsearch.pe";
       const u = await c.query(
         "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'jugador',$3) RETURNING id",
-        [correo, hash, nombre]
+        [j.correo, hash, nombre]
       );
+      const clubId = asignacion[j.correo] ? clubPorNombre[asignacion[j.correo]] : null;
       const jr = await c.query(
         `INSERT INTO jugadores
            (usuario_id, nombres, apellido_paterno, apellido_materno, nacionalidad,
-            fecha_nacimiento, posicion, estatura_cm, peso_kg, pierna, ciudad, disponible, profesional, bio, contacto)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+            fecha_nacimiento, posicion, estatura_cm, peso_kg, pierna, ciudad, club_id, disponible, profesional, bio, contacto)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
         [u.rows[0].id, j.nombres, j.apPaterno, j.apMaterno, j.nacionalidad,
-         fechaNac(j.edad), j.posicion, j.estatura, j.peso, j.pierna, j.ciudad, j.disponible, j.profesional, j.bio, correo]
+         fechaNac(j.edad), j.posicion, j.estatura, j.peso, j.pierna, j.ciudad, clubId, j.disponible, j.profesional, j.bio, j.correo]
       );
       const jugadorId = jr.rows[0].id;
-      for (const t of j.logros) {
-        await c.query("INSERT INTO logros (jugador_id, titulo) VALUES ($1,$2)", [jugadorId, t]);
-      }
+      for (const t of j.logros) await c.query("INSERT INTO logros (jugador_id, titulo) VALUES ($1,$2)", [jugadorId, t]);
       await MediaJugador.create({ jugadorId, videos: j.videos.map((t) => ({ titulo: t, tipo: "highlight" })) });
     }
 
-    // Cuenta demo de cazatalentos
-    await c.query(
-      "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'cazatalentos',$3)",
-      ["scout@footsearch.pe", hash, "Scout Demo"]
+    // ---- Un cazatalentos ----
+    console.log("Insertando cazatalentos demo…");
+    const cz = await c.query(
+      "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'cazatalentos',$3) RETURNING id",
+      ["scout@demo.pe", hash, "Ana Scout"]
     );
+    await c.query("INSERT INTO cazatalentos (usuario_id, club_id) VALUES ($1,$2)", [cz.rows[0].id, clubPorNombre["Atlético Cóndores FC"]]);
 
-    console.log("\n✅ Seed completo.");
-    console.log("   Cazatalentos demo:  scout@footsearch.pe / demo1234");
-    console.log("   Jugadores demo (demo1234), p.ej.: diego.quispe@footsearch.pe");
-    console.log("   Códigos de club generados: 1000 (de un solo uso)");
-    console.log("   Ejemplos de código válido para registrar un club:");
-    codigos.slice(0, 5).forEach((x) => console.log("     " + x));
+    console.log("\n========================================");
+    console.log("  SEED COMPLETO — usuarios de prueba");
+    console.log("  (todos con la contraseña: demo1234)");
+    console.log("========================================");
+    console.log("\n  CLUBES (editables):");
+    CLUBES.forEach((cl) => console.log(`    ${cl.correo}   → ${cl.nombre}`));
+    console.log("\n  JUGADORES (editables):");
+    JUGADORES.forEach((j) => console.log(`    ${j.correo}`));
+    console.log("\n  CAZATALENTOS:");
+    console.log("    scout@demo.pe");
+    console.log("\n  Códigos de club libres (de un solo uso). Ejemplos:");
+    codigos.slice(CLUBES.length, CLUBES.length + 5).forEach((x) => console.log("    " + x));
     console.log("");
   } catch (e) {
     console.error("Error en seed:", e.message);
