@@ -88,11 +88,11 @@ export default function App() {
       {vistaActual === "login" && <Login ir={ir} entrar={entrar} />}
       {vistaActual === "registro" && <Registro ir={ir} entrar={entrar} />}
       {vistaActual === "buscar" && (
-        <Buscar usuario={usuario} verJugador={verJugador}
+        <Buscar usuario={usuario} verJugador={verJugador} verClub={verClub}
           favoritos={favoritos} toggleFav={toggleFav} />
       )}
       {vistaActual === "favoritos" && (
-        <Buscar usuario={usuario} verJugador={verJugador}
+        <Buscar usuario={usuario} verJugador={verJugador} verClub={verClub}
           favoritos={favoritos} toggleFav={toggleFav} soloFavoritos />
       )}
       {vistaActual === "jugador" && (

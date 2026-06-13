@@ -26,8 +26,14 @@ function edadDesde(fecha) {
 export function Login({ ir, entrar }) {
   const [correo, setCorreo] = useState("");
   const [pass, setPass] = useState("");
+  const [verPass, setVerPass] = useState(false);
   const [err, setErr] = useState("");
   const [cargando, setCargando] = useState(false);
+  // recuperación de contraseña
+  const [modoReset, setModoReset] = useState(false);
+  const [tokenReset, setTokenReset] = useState("");
+  const [nuevaPass, setNuevaPass] = useState("");
+  const [info, setInfo] = useState("");
 
   async function submit() {
     setErr("");
@@ -40,33 +46,90 @@ export function Login({ ir, entrar }) {
     finally { setCargando(false); }
   }
 
+  async function pedirReset() {
+    setErr(""); setInfo("");
+    if (!correo) { setErr("Escribe tu correo arriba y vuelve a pulsar."); return; }
+    try {
+      const r = await api.recuperarPassword(correo);
+      if (r.tokenReset) {
+        setTokenReset(r.tokenReset);
+        setModoReset(true);
+        setInfo("Verificamos tu correo. Ahora escribe tu nueva contraseña.");
+      } else {
+        setInfo(r.mensaje || "Si el correo existe, podrás restablecerla.");
+      }
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function confirmarReset() {
+    setErr(""); setInfo("");
+    if (!nuevaPass || nuevaPass.length < 6) { setErr("La nueva contraseña debe tener al menos 6 caracteres."); return; }
+    try {
+      await api.restablecerPassword(tokenReset, nuevaPass);
+      setInfo("Contraseña actualizada. Ya puedes iniciar sesión.");
+      setModoReset(false); setPass(nuevaPass); setNuevaPass("");
+    } catch (e) { setErr(e.message); }
+  }
+
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
         <div className="auth-head">
           <EmblemaFootSearch size={58} />
-          <h2>Iniciar sesion</h2>
-          <p>Vuelve al radar y sigue explorando talento.</p>
+          <h2>{modoReset ? "Recuperar contraseña" : "Iniciar sesion"}</h2>
+          <p>{modoReset ? "Define una nueva contraseña para tu cuenta." : "Vuelve al radar y sigue explorando talento."}</p>
         </div>
         {err && <div className="aviso err">{err}</div>}
-        <div className="campo">
-          <label>Correo</label>
-          <input type="email" value={correo} placeholder="tu@correo.com"
-            onChange={(e) => setCorreo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()} />
-        </div>
-        <div className="campo">
-          <label>Contrasena</label>
-          <input type="password" value={pass} placeholder="********"
-            onChange={(e) => setPass(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()} />
-        </div>
-        <button className="btn btn-rojo btn-bloque" onClick={submit} disabled={cargando}>
-          {cargando ? "Entrando..." : "Entrar"}
-        </button>
-        <div className="auth-pie">
-          No tienes cuenta? <button onClick={() => ir("registro")}>Registrate</button>
-        </div>
+        {info && <div className="aviso">{info}</div>}
+
+        {!modoReset ? (
+          <>
+            <div className="campo">
+              <label>Correo</label>
+              <input type="email" value={correo} placeholder="tu@correo.com"
+                onChange={(e) => setCorreo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()} />
+            </div>
+            <div className="campo">
+              <label>Contrasena</label>
+              <div className="campo-pass">
+                <input type={verPass ? "text" : "password"} value={pass} placeholder="********"
+                  onChange={(e) => setPass(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submit()} />
+                <button type="button" className="ver-pass" onClick={() => setVerPass(!verPass)}>
+                  {verPass ? "Ocultar" : "Ver"}
+                </button>
+              </div>
+            </div>
+            <div style={{ textAlign: "right", marginTop: -4, marginBottom: 10 }}>
+              <button className="link-sm" onClick={pedirReset}>¿Olvidaste tu contraseña?</button>
+            </div>
+            <button className="btn btn-rojo btn-bloque" onClick={submit} disabled={cargando}>
+              {cargando ? "Entrando..." : "Entrar"}
+            </button>
+            <div className="auth-pie">
+              No tienes cuenta? <button onClick={() => ir("registro")}>Registrate</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="campo">
+              <label>Nueva contraseña</label>
+              <div className="campo-pass">
+                <input type={verPass ? "text" : "password"} value={nuevaPass} placeholder="Mínimo 6 caracteres"
+                  onChange={(e) => setNuevaPass(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && confirmarReset()} />
+                <button type="button" className="ver-pass" onClick={() => setVerPass(!verPass)}>
+                  {verPass ? "Ocultar" : "Ver"}
+                </button>
+              </div>
+            </div>
+            <button className="btn btn-rojo btn-bloque" onClick={confirmarReset}>Guardar nueva contraseña</button>
+            <div className="auth-pie">
+              <button onClick={() => { setModoReset(false); setErr(""); setInfo(""); }}>Volver a iniciar sesión</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

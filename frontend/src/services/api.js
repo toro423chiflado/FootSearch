@@ -61,6 +61,8 @@ export const api = {
   // --- auth ---
   register: (body) => pedir("/auth/register", { method: "POST", body: JSON.stringify(body) }),
   login: (body) => pedir("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+  recuperarPassword: (correo) => pedir("/auth/recuperar", { method: "POST", body: JSON.stringify({ correo }) }),
+  restablecerPassword: (tokenReset, nuevaPassword) => pedir("/auth/restablecer", { method: "POST", body: JSON.stringify({ tokenReset, nuevaPassword }) }),
   logout: () => pedir("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }),
   me: () => pedir("/auth/me"),
   refrescarSesion: async () => {
@@ -84,7 +86,10 @@ export const api = {
   subirImagenesJugador: (formData) => pedir("/jugadores/me/imagenes", { method: "POST", body: formData }),
 
   // --- clubes ---
-  clubes: () => pedir("/clubes"),
+  clubes: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return pedir(`/clubes${qs ? "?" + qs : ""}`);
+  },
   club: (id) => pedir(`/clubes/${id}`),
   miClub: () => pedir("/clubes/mi"),
   editarMiClub: (body) => pedir("/clubes/mi", { method: "PUT", body: JSON.stringify(body) }),
