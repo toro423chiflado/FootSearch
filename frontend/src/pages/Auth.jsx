@@ -189,6 +189,7 @@ export function Registro({ ir, entrar }) {
         estatura: f.estatura ? Number(f.estatura) : null,
         peso: f.peso ? Number(f.peso) : null,
         ciudad: f.ciudad || null,
+        celular: f.celular || null,
         club: f.clubActual || null,
       });
     } else if (tipo === "cazatalentos") {
@@ -353,6 +354,11 @@ export function Registro({ ir, entrar }) {
                   <label>Contrasena</label>
                   <input type="password" value={f.password || ""} onChange={set("password")} placeholder="Minimo 6 caracteres" />
                 </div>
+              </div>
+              <div className="campo">
+                <label>Celular de contacto</label>
+                <input value={f.celular || ""} onChange={set("celular")} placeholder="+51 999 999 999" />
+                <div className="ayuda">Solo lo verán los cazatalentos y clubes interesados. No aparece en tu perfil público.</div>
               </div>
             </div>
           </div>

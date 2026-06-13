@@ -82,6 +82,7 @@ export const api = {
   jugador: (id) => pedir(`/jugadores/${id}`),
   actualizarMiPerfil: (body) => pedir("/jugadores/me", { method: "PUT", body: JSON.stringify(body) }),
   subirVideo: (formData) => pedir("/jugadores/me/videos", { method: "POST", body: formData }),
+  renombrarVideo: (videoId, titulo) => pedir(`/jugadores/me/videos/${videoId}`, { method: "PUT", body: JSON.stringify({ titulo }) }),
   eliminarVideo: (videoId) => pedir(`/jugadores/me/videos/${videoId}`, { method: "DELETE" }),
   subirImagenesJugador: (formData) => pedir("/jugadores/me/imagenes", { method: "POST", body: formData }),
 

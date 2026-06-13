@@ -3,6 +3,9 @@ import { api } from "../services/api";
 import { colorDe, iniciales } from "../components/Componentes";
 import { IconPlay, IconTrofeo, IconEstrella } from "../components/Iconos";
 
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").replace("/api", "");
+function urlMedia(p) { return p ? (p.startsWith("http") ? p : API_BASE + p) : null; }
+
 export default function PerfilJugador({ id, usuario, volver, verClub, favoritos, toggleFav }) {
   const [modal, setModal] = useState(false);
   const [datos, setDatos] = useState(null);
@@ -92,15 +95,21 @@ export default function PerfilJugador({ id, usuario, volver, verClub, favoritos,
           </div>
 
           <div className="card bloque">
-            <h3>Videos destacados</h3>
+            <h3>Highlights</h3>
             {videos.length === 0 ? (
               <p style={{ color: "var(--gris)", fontSize: 14 }}>Sin videos por ahora.</p>
-            ) : videos.map((v, i) => (
-              <div className="video-item" key={v._id || i}>
-                <div className="play"><IconPlay /></div>
-                <span>{v.titulo}</span>
+            ) : (
+              <div className="videos-grid">
+                {videos.map((v, i) => (
+                  <div className="video-card" key={v._id || i}>
+                    {v.url
+                      ? <video className="video-player" src={urlMedia(v.url)} controls preload="metadata" />
+                      : <div className="video-sinarchivo"><IconPlay /> <span>Sin archivo</span></div>}
+                    <div className="video-pie"><span className="video-titulo">{v.titulo}</span></div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
           <div className="card bloque">
@@ -120,6 +129,7 @@ export default function PerfilJugador({ id, usuario, volver, verClub, favoritos,
             <h3>Contactar a {j.nombre.split(" ")[0]}</h3>
             <p>En la plataforma real se abriria un canal de mensajeria directa.</p>
             <div className="correo">{j.contacto || "contacto@footsearch.pe"}</div>
+            {j.celular && <div className="correo" style={{ marginTop: 8 }}>📱 {j.celular}</div>}
             <p style={{ fontSize: 13, color: "var(--gris)" }}>Boton de demostracion - sin envio real.</p>
             <button className="btn btn-rojo btn-bloque" style={{ marginTop: 16 }} onClick={() => setModal(false)}>Cerrar</button>
           </div>

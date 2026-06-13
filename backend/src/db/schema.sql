@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS jugadores (
   profesional     BOOLEAN NOT NULL DEFAULT false,
   bio             TEXT,
   contacto        VARCHAR(160),
+  celular         VARCHAR(30),
   foto_perfil     VARCHAR(255),               -- foto de perfil
   foto_portada    VARCHAR(255),               -- foto de portada
   -- Estadísticas: solo editables por endpoint admin. Arrancan en 0.

@@ -51,3 +51,22 @@ export async function listarParaAdmin(req, res) {
     return res.status(500).json({ error: "Error al listar." });
   }
 }
+
+// GET /api/admin/licencias?estado=libres|usadas|todas&limit=100  (privado)
+// Lista los códigos de club (licencias).
+export async function listarLicencias(req, res) {
+  const { estado = "libres", limit = 100 } = req.query;
+  let cond = "";
+  if (estado === "libres") cond = "WHERE usado = false";
+  else if (estado === "usadas") cond = "WHERE usado = true";
+  try {
+    const r = await query(
+      `SELECT codigo, usado FROM codigos_club ${cond} ORDER BY codigo LIMIT $1`,
+      [Math.min(Number(limit) || 100, 1000)]
+    );
+    const total = await query("SELECT COUNT(*) FILTER (WHERE usado=false)::int libres, COUNT(*)::int total FROM codigos_club");
+    return res.json({ licencias: r.rows, resumen: total.rows[0] });
+  } catch (e) {
+    return res.status(500).json({ error: "Error al listar licencias." });
+  }
+}

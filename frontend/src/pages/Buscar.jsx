@@ -210,7 +210,7 @@ export default function Buscar({ usuario, verJugador, verClub, favoritos, toggle
           <div className="filtros">
             <div className="filtros-fila">
               <input className="busca-input" placeholder="Buscar club por nombre..." value={qClub} onChange={(e) => setQClub(e.target.value)} />
-              <input placeholder="Ciudad" value={ciudadClub} onChange={(e) => setCiudadClub(e.target.value)} />
+              <input className="filtro-ciudad" placeholder="Filtrar por ciudad" value={ciudadClub} onChange={(e) => setCiudadClub(e.target.value)} />
             </div>
           </div>
           {error && <div className="aviso err">{error}</div>}

@@ -2,10 +2,23 @@ import { query } from "../config/postgres.js";
 
 const CUPO_MAX = 52;
 
-// GET /api/clubes
+// GET /api/clubes?q=&ciudad=
 export async function listar(req, res) {
+  const { q, ciudad } = req.query;
+  const where = [];
+  const params = [];
+  if (q) { params.push(`%${q}%`); where.push(`cl.nombre ILIKE $${params.length}`); }
+  if (ciudad) { params.push(`%${ciudad}%`); where.push(`cl.ciudad ILIKE $${params.length}`); }
   try {
-    const r = await query("SELECT id, codigo, nombre, ciudad, fundado, color, iniciales, foto_perfil FROM clubes ORDER BY nombre");
+    const r = await query(
+      `SELECT cl.id, cl.codigo, cl.nombre, cl.ciudad, cl.fundado, cl.color, cl.iniciales,
+              cl.foto_perfil, cl.foto_portada,
+              (SELECT COUNT(*) FROM jugadores j WHERE j.club_id = cl.id)::int AS jugadores
+       FROM clubes cl
+       ${where.length ? "WHERE " + where.join(" AND ") : ""}
+       ORDER BY cl.nombre`,
+      params
+    );
     return res.json({ clubes: r.rows });
   } catch (e) {
     return res.status(500).json({ error: "No se pudo listar clubes." });
@@ -17,13 +30,13 @@ export async function miClub(req, res) {
   try {
     const cc = await query("SELECT club_id FROM cuentas_club WHERE usuario_id = $1", [req.usuario.id]);
     if (cc.rowCount === 0) return res.status(404).json({ error: "Tu cuenta no está vinculada a un club." });
-    return detallePorId(cc.rows[0].club_id, res);
+    return detallePorId(cc.rows[0].club_id, res, true);
   } catch (e) {
     return res.status(500).json({ error: "No se pudo obtener tu club." });
   }
 }
 
-async function detallePorId(clubId, res) {
+async function detallePorId(clubId, res, incluirCodigo = false) {
   const c = await query("SELECT * FROM clubes WHERE id = $1", [clubId]);
   if (c.rowCount === 0) return res.status(404).json({ error: "Club no encontrado." });
   const plantel = await query(
@@ -36,13 +49,15 @@ async function detallePorId(clubId, res) {
     "SELECT id, titulo, descripcion, creado_en FROM convocatorias WHERE club_id = $1 ORDER BY creado_en DESC",
     [clubId]
   );
-  return res.json({ club: c.rows[0], cupoMax: CUPO_MAX, plantel: plantel.rows, convocatorias: convocatorias.rows });
+  const club = c.rows[0];
+  if (!incluirCodigo) delete club.codigo;   // el ID/licencia no se expone públicamente
+  return res.json({ club, cupoMax: CUPO_MAX, plantel: plantel.rows, convocatorias: convocatorias.rows });
 }
 
-// GET /api/clubes/:id → club + plantel + convocatorias
+// GET /api/clubes/:id → club + plantel + convocatorias (perfil público, sin código)
 export async function detalle(req, res) {
   try {
-    return await detallePorId(req.params.id, res);
+    return await detallePorId(req.params.id, res, false);
   } catch (e) {
     console.error("[clubes.detalle]", e.message);
     return res.status(500).json({ error: "No se pudo obtener el club." });

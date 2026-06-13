@@ -1,9 +1,14 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { pool } from "../config/postgres.js";
 import { conectarMongo } from "../config/mongo.js";
 import { MediaJugador } from "../models/MediaJugador.js";
 import mongoose from "mongoose";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Genera un código de club complejo: FS-XXXX-XXXX-XXXX (sin caracteres ambiguos)
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -11,6 +16,14 @@ function generarCodigo() {
   const bloque = () => Array.from({ length: 4 },
     () => ALFABETO[crypto.randomInt(ALFABETO.length)]).join("");
   return `FS-${bloque()}-${bloque()}-${bloque()}`;
+}
+
+// Carga las 100 licencias fijas del archivo (las que se entregan por escrito)
+function licenciasFijas() {
+  try {
+    const txt = fs.readFileSync(path.join(__dirname, "licencias.txt"), "utf8");
+    return txt.split("\n").map((l) => l.trim()).filter(Boolean);
+  } catch { return []; }
 }
 
 const fechaNac = (edad) => `${new Date().getFullYear() - edad}-06-15`;
@@ -25,12 +38,17 @@ const JUGADORES = [
 
 // ---- Clubes poco conocidos, ya creados, con su cuenta de acceso ----
 const CLUBES = [
-  { correo: "atletico.condores@demo.pe", nombre: "Atlético Cóndores FC", ciudad: "Huaraz",      fundado: 2014, color: "#1F7A4D", iniciales: "ACF", descripcion: "Club de altura formador de talento ancashino." },
-  { correo: "deportivo.manglar@demo.pe", nombre: "Deportivo Manglar",     ciudad: "Tumbes",      fundado: 2009, color: "#0E6E8C", iniciales: "DM",  descripcion: "Cantera norteña con identidad ofensiva." },
+  { correo: "atletico.condores@demo.pe", nombre: "Atlético Cóndores FC", ciudad: "Huaraz", fundado: 2014, color: "#1F7A4D", iniciales: "ACF", descripcion: "Club de altura formador de talento ancashino." },
+  { correo: "deportivo.manglar@demo.pe", nombre: "Deportivo Manglar", ciudad: "Tumbes", fundado: 2009, color: "#0E6E8C", iniciales: "DM", descripcion: "Cantera norteña con identidad ofensiva." },
+  { correo: "union.amazonica@demo.pe", nombre: "Unión Amazónica", ciudad: "Iquitos", fundado: 2016, color: "#8C4A0E", iniciales: "UA", descripcion: "Fútbol de la selva con garra y velocidad." },
+  { correo: "real.altiplano@demo.pe", nombre: "Real Altiplano", ciudad: "Puno", fundado: 2011, color: "#5413EC", iniciales: "RA", descripcion: "Resistencia y disciplina a 3800 msnm." },
 ];
 
 export async function generarCodigosClub(cliente, cantidad = 1000) {
   const set = new Set();
+  // Primero las 100 licencias fijas (las que se entregan por escrito)
+  licenciasFijas().forEach((l) => set.add(l));
+  // Luego completar con aleatorias hasta la cantidad pedida
   while (set.size < cantidad) set.add(generarCodigo());
   const codigos = [...set];
   const LOTE = 200;
@@ -59,6 +77,7 @@ export async function sembrar({ gestionarConexion = true } = {}) {
     // ---- Clubes (creados + cuenta de acceso, consumiendo un código) ----
     console.log("Insertando clubes demo…");
     const clubPorNombre = {};
+    const licenciaPorClub = {};
     for (let i = 0; i < CLUBES.length; i++) {
       const cl = CLUBES[i];
       const codigo = codigos[i]; // consume un código del pool
@@ -69,6 +88,7 @@ export async function sembrar({ gestionarConexion = true } = {}) {
       );
       const clubId = clubRow.rows[0].id;
       clubPorNombre[cl.nombre] = clubId;
+      licenciaPorClub[cl.nombre] = codigo;
       await c.query("UPDATE codigos_club SET usado=true, usado_por=$1, usado_en=now() WHERE codigo=$2", [clubId, codigo]);
       const u = await c.query(
         "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'club',$3) RETURNING id",
@@ -90,10 +110,10 @@ export async function sembrar({ gestionarConexion = true } = {}) {
       const jr = await c.query(
         `INSERT INTO jugadores
            (usuario_id, nombres, apellido_paterno, apellido_materno, nacionalidad,
-            fecha_nacimiento, posicion, estatura_cm, peso_kg, pierna, ciudad, club_id, disponible, profesional, bio, contacto)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+            fecha_nacimiento, posicion, estatura_cm, peso_kg, pierna, ciudad, club_id, disponible, profesional, bio, contacto, celular)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
         [u.rows[0].id, j.nombres, j.apPaterno, j.apMaterno, j.nacionalidad,
-         fechaNac(j.edad), j.posicion, j.estatura, j.peso, j.pierna, j.ciudad, clubId, j.disponible, j.profesional, j.bio, j.correo]
+         fechaNac(j.edad), j.posicion, j.estatura, j.peso, j.pierna, j.ciudad, clubId, j.disponible, j.profesional, j.bio, j.correo, j.celular || "+51 999 000 000"]
       );
       const jugadorId = jr.rows[0].id;
       for (const t of j.logros) await c.query("INSERT INTO logros (jugador_id, titulo) VALUES ($1,$2)", [jugadorId, t]);
@@ -112,15 +132,17 @@ export async function sembrar({ gestionarConexion = true } = {}) {
     console.log("  SEED COMPLETO — usuarios de prueba");
     console.log("  (todos con la contraseña: demo1234)");
     console.log("========================================");
-    console.log("\n  CLUBES (editables):");
-    CLUBES.forEach((cl) => console.log(`    ${cl.correo}   → ${cl.nombre}`));
+    console.log("\n  CLUBES (editables) — correo / licencia usada:");
+    CLUBES.forEach((cl) => console.log(`    ${cl.correo}  →  ${cl.nombre}  (licencia: ${licenciaPorClub[cl.nombre]})`));
     console.log("\n  JUGADORES (editables):");
     JUGADORES.forEach((j) => console.log(`    ${j.correo}`));
     console.log("\n  CAZATALENTOS:");
     console.log("    scout@demo.pe");
-    console.log("\n  Códigos de club libres (de un solo uso). Ejemplos:");
-    codigos.slice(CLUBES.length, CLUBES.length + 5).forEach((x) => console.log("    " + x));
-    console.log("");
+    console.log("\n  Licencias LIBRES para registrar nuevos clubes (ejemplos):");
+    codigos.slice(CLUBES.length, CLUBES.length + 6).forEach((x) => console.log("    " + x));
+    const libres = await c.query("SELECT COUNT(*) FILTER (WHERE usado=false)::int n FROM codigos_club");
+    console.log(`\n  Total de licencias libres: ${libres.rows[0].n} de 1000`);
+    console.log("========================================\n");
   } catch (e) {
     console.error("Error en seed:", e.message);
     throw e;
@@ -143,5 +165,13 @@ export async function sembrarSiVacio() {
 
 const ejecutadoDirecto = process.argv[1] && process.argv[1].endsWith("seed.js");
 if (ejecutadoDirecto) {
-  sembrar().then(() => process.exit(0)).catch(() => process.exit(1));
+  // Por defecto NO borra: solo siembra si la base está vacía (protege tus datos).
+  // Con --reset (o npm run seed:reset) borra y vuelve a sembrar desde cero.
+  const forzar = process.argv.includes("--reset");
+  const accion = forzar
+    ? sembrar()
+    : sembrarSiVacio().then((sembro) => {
+        if (!sembro) console.log("[seed] No se sembró nada. Usa 'npm run seed:reset' para reiniciar desde cero.");
+      }).finally(async () => { await pool.end(); await mongoose.disconnect(); });
+  accion.then(() => process.exit(0)).catch((e) => { console.error(e.message); process.exit(1); });
 }

@@ -28,6 +28,8 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [tituloVideo, setTituloVideo] = useState("");
+  const [editandoVid, setEditandoVid] = useState(null);
+  const [nuevoTitVid, setNuevoTitVid] = useState("");
   const fotoRef = useRef(), portadaRef = useRef(), videoRef = useRef();
 
   async function cargar() {
@@ -72,6 +74,10 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
     catch (e) { setError(e.message); }
   }
   async function borrarVideo(id) { try { await api.eliminarVideo(id); await cargar(); } catch (e) { setError(e.message); } }
+  async function guardarTitVid(id) {
+    try { await api.renombrarVideo(id, nuevoTitVid); setEditandoVid(null); flash("Nombre actualizado."); await cargar(); }
+    catch (e) { setError(e.message); }
+  }
 
   if (cargando) return <main className="contenedor perfil"><p style={{ color: "var(--gris)" }}>Cargando tu perfil...</p></main>;
   if (error && !me) return <main className="contenedor perfil"><div className="aviso err">{error}</div></main>;
@@ -135,6 +141,7 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
             <CampoEditable etiqueta="Nacionalidad" valor={j.nacionalidad} onGuardar={(v) => guardarCampo("nacionalidad", v)} />
             <CampoEditable etiqueta="Fecha de nacimiento" tipo="date" valor={j.fecha_nacimiento ? j.fecha_nacimiento.slice(0,10) : ""} onGuardar={(v) => guardarCampo("fechaNacimiento", v)} />
             <CampoEditable etiqueta="Ciudad" valor={j.ciudad} onGuardar={(v) => guardarCampo("ciudad", v)} />
+            <CampoEditable etiqueta="Celular de contacto (privado)" valor={j.celular} placeholder="+51 999 999 999" onGuardar={(v) => guardarCampo("celular", v)} />
           </div>
 
           <div className="card bloque">
@@ -160,21 +167,38 @@ export default function MiPerfilJugador({ volver, onActualizar }) {
           </div>
 
           <div className="card bloque">
-            <h3>Videos / multimedia</h3>
+            <h3>Highlights</h3>
             <div className="subir-video">
-              <input type="text" placeholder="Título del video" value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
+              <input type="text" placeholder="Nombre del highlight" value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
               <button className="btn btn-fantasma btn-sm" onClick={() => videoRef.current.click()}>Subir</button>
               <input ref={videoRef} type="file" accept="video/*" hidden onChange={(e) => subirVideo(e.target.files[0])} />
             </div>
-            {videos.length === 0 ? <p style={{ color: "var(--gris)", fontSize: 14, marginTop: 10 }}>Aún no has subido videos.</p>
-              : videos.map((v) => (
-                <div className="video-item" key={v._id}>
-                  <div className="play"><IconPlay /></div>
-                  <span style={{ flex: 1 }}>{v.titulo}</span>
-                  {v.url && <a className="ver-link" href={urlMedia(v.url)} target="_blank" rel="noreferrer">ver</a>}
-                  <button className="borrar-x" onClick={() => borrarVideo(v._id)}>✕</button>
-                </div>
-              ))}
+            {videos.length === 0 ? <p style={{ color: "var(--gris)", fontSize: 14, marginTop: 10 }}>Aún no has subido highlights.</p>
+              : <div className="videos-grid">
+                  {videos.map((v) => (
+                    <div className="video-card" key={v._id}>
+                      {v.url
+                        ? <video className="video-player" src={urlMedia(v.url)} controls preload="metadata" />
+                        : <div className="video-sinarchivo"><IconPlay /> <span>Sin archivo</span></div>}
+                      <div className="video-pie">
+                        {editandoVid === v._id ? (
+                          <>
+                            <input className="vid-edit-input" value={nuevoTitVid} autoFocus
+                              onChange={(e) => setNuevoTitVid(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") guardarTitVid(v._id); if (e.key === "Escape") setEditandoVid(null); }} />
+                            <button className="vid-ok" onClick={() => guardarTitVid(v._id)}>✓</button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="video-titulo">{v.titulo}</span>
+                            <button className="vid-lapiz" title="Renombrar" onClick={() => { setEditandoVid(v._id); setNuevoTitVid(v.titulo); }}><IconLapiz size={13} /></button>
+                            <button className="borrar-x" onClick={() => borrarVideo(v._id)}>✕</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>}
           </div>
 
           <div className="card bloque">

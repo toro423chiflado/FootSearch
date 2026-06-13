@@ -113,7 +113,7 @@ export async function registrar(req, res) {
     if (tipo === "jugador") {
       const {
         nombres, apellidoPaterno, apellidoMaterno, nacionalidad,
-        fechaNacimiento, posicion, pierna, estatura, peso, club, ciudad,
+        fechaNacimiento, posicion, pierna, estatura, peso, club, ciudad, celular,
       } = req.body;
       // Resolver club por nombre (opcional)
       let clubId = null;
@@ -124,11 +124,11 @@ export async function registrar(req, res) {
       await cliente.query(
         `INSERT INTO jugadores
            (usuario_id, nombres, apellido_paterno, apellido_materno, nacionalidad,
-            fecha_nacimiento, posicion, pierna, estatura_cm, peso_kg, ciudad, club_id, contacto)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            fecha_nacimiento, posicion, pierna, estatura_cm, peso_kg, ciudad, club_id, contacto, celular)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [usuario.id, nombres || null, apellidoPaterno || null, apellidoMaterno || null,
          nacionalidad || null, fechaNacimiento || null, posicion || null, pierna || null,
-         estatura || null, peso || null, ciudad || null, clubId, correo.toLowerCase()]
+         estatura || null, peso || null, ciudad || null, clubId, correo.toLowerCase(), celular || null]
       );
     } else if (tipo === "cazatalentos") {
       const { club } = req.body;
@@ -291,5 +291,48 @@ export async function yo(req, res) {
   } catch (e) {
     console.error("[yo]", e.message);
     return res.status(500).json({ error: "No se pudo obtener el perfil." });
+  }
+}
+
+// =================== RECUPERAR CONTRASEÑA ===================
+// Maqueta: no hay servicio de email, así que el "token" se devuelve directamente
+// para que el usuario pueda restablecer en el momento. En producción se enviaría
+// por correo y nunca se devolvería en la respuesta.
+export async function solicitarReset(req, res) {
+  const { correo } = req.body;
+  if (!correo) return res.status(400).json({ error: "Indica tu correo." });
+  try {
+    const r = await query("SELECT id FROM usuarios WHERE correo = $1", [correo.toLowerCase()]);
+    // Por seguridad no revelamos si el correo existe o no... salvo en esta maqueta,
+    // donde sí devolvemos el token para poder probar el flujo sin email real.
+    if (r.rowCount === 0) {
+      return res.json({ ok: true, existe: false, mensaje: "Si el correo existe, podrás restablecer la contraseña." });
+    }
+    const token = firmarAccessToken({ id: r.rows[0].id, tipo: "reset", nombre: "reset" });
+    return res.json({
+      ok: true,
+      existe: true,
+      tokenReset: token,                 // SOLO en maqueta
+      mensaje: "Usa este token para establecer una nueva contraseña.",
+    });
+  } catch (e) {
+    console.error("[solicitarReset]", e.message);
+    return res.status(500).json({ error: "No se pudo procesar la solicitud." });
+  }
+}
+
+export async function restablecer(req, res) {
+  const { tokenReset, nuevaPassword } = req.body;
+  if (!tokenReset || !nuevaPassword) return res.status(400).json({ error: "Falta el token o la nueva contraseña." });
+  if (String(nuevaPassword).length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
+  try {
+    const payload = verificarToken(tokenReset);
+    const hash = await bcrypt.hash(nuevaPassword, 10);
+    await query("UPDATE usuarios SET password_hash = $1 WHERE id = $2", [hash, payload.id]);
+    // invalida sesiones anteriores
+    await query("DELETE FROM refresh_tokens WHERE usuario_id = $1", [payload.id]);
+    return res.json({ ok: true, mensaje: "Contraseña actualizada. Ya puedes iniciar sesión." });
+  } catch (e) {
+    return res.status(401).json({ error: "Token inválido o expirado. Solicita uno nuevo." });
   }
 }

@@ -19,6 +19,8 @@ router.post("/auth/register", auth.registrar);
 router.post("/auth/login", auth.login);
 router.post("/auth/refresh", auth.refrescar);
 router.post("/auth/logout", auth.logout);
+router.post("/auth/recuperar", auth.solicitarReset);
+router.post("/auth/restablecer", auth.restablecer);
 router.get("/auth/me", requiereAuth, auth.yo);
 
 // ---------- Jugadores ----------
@@ -30,6 +32,7 @@ router.get("/jugadores/:id", requiereAuth, jugadores.detalle);
 // ---------- Videos / multimedia (MongoDB + disco) ----------
 router.get("/jugadores/:id/videos", requiereAuth, videos.listar);
 router.post("/jugadores/me/videos", requiereAuth, requiereTipo("jugador"), subidaVideo.single("video"), videos.subir);
+router.put("/jugadores/me/videos/:videoId", requiereAuth, requiereTipo("jugador"), videos.renombrar);
 router.delete("/jugadores/me/videos/:videoId", requiereAuth, requiereTipo("jugador"), videos.eliminar);
 
 // ---------- Clubes ----------
@@ -46,6 +49,7 @@ router.post("/favoritos/:jugadorId", requiereAuth, requiereTipo("cazatalentos", 
 
 // ---------- ADMIN (privado, protegido por x-admin-key) ----------
 router.get("/admin/jugadores", requiereAdmin, admin.listarParaAdmin);
+router.get("/admin/licencias", requiereAdmin, admin.listarLicencias);
 router.put("/admin/jugadores/:id/estadisticas", requiereAdmin, admin.editarEstadisticas);
 
 export default router;

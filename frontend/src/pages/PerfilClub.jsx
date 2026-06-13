@@ -37,7 +37,7 @@ export default function PerfilClub({ id, volver, verJugador }) {
         <div style={{ flex: 1 }}>
           <h1>{club.nombre}</h1>
           <div className="sub" style={{ color: "var(--gris-claro)" }}>
-            {club.ciudad} - Fundado en {club.fundado} - ID {club.codigo}
+            {club.ciudad}{club.fundado ? ` - Fundado en ${club.fundado}` : ""}
           </div>
           <div className="cupo">
             <div className="cupo-barra"><div className="cupo-fill" style={{ width: pct + "%" }} /></div>

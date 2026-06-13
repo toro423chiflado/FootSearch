@@ -513,3 +513,36 @@ a { color: inherit; text-decoration: none; }
 .jc-club:hover { background: var(--rojo); color: #fff; }
 
 @media (max-width: 560px) { .grid-jug { grid-template-columns: 1fr 1fr; } }
+
+/* ============ Plantel en círculos (Mi club) ============ */
+.plantel-circulos { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 18px; }
+.pc-jug { width: 96px; text-align: center; cursor: pointer; }
+.pc-foto { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; font-family: var(--fuente-display); font-weight: 700; font-size: 26px; color: #fff; background: var(--carbon-3); border: 3px solid var(--linea); transition: border-color .15s, transform .15s; margin: 0 auto; }
+.pc-jug:hover .pc-foto { border-color: var(--rojo); transform: translateY(-3px); }
+.pc-nombre { font-size: 12px; font-weight: 600; margin-top: 8px; line-height: 1.2; }
+.pc-pos { font-size: 11px; color: var(--gris); margin-top: 2px; }
+
+/* ============ Banner de convocatorias ============ */
+.convocatoria-banner { display: flex; align-items: center; gap: 20px; background: linear-gradient(120deg, rgba(212,162,78,.14), var(--carbon-2)); border: 1px solid var(--dorado); }
+.cb-icono { font-size: 42px; flex-shrink: 0; }
+.cb-texto { flex: 1; }
+.cb-texto h3 { font-family: var(--fuente-display); font-weight: 700; text-transform: uppercase; color: var(--dorado); margin-bottom: 4px; }
+.cb-texto p { color: var(--gris-claro); font-size: 14px; }
+@media (max-width: 600px) { .convocatoria-banner { flex-direction: column; text-align: center; } }
+
+/* ============ Reproductor de videos ============ */
+.videos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
+.video-card { background: var(--carbon); border: 1px solid var(--linea); border-radius: var(--r-md); overflow: hidden; }
+.video-player { width: 100%; height: 150px; background: #000; display: block; object-fit: cover; }
+.video-sinarchivo { width: 100%; height: 150px; display: grid; place-items: center; gap: 6px; color: var(--gris); background: var(--carbon-3); }
+.video-pie { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 8px; }
+.video-titulo { font-size: 13px; color: var(--hueso); flex: 1; }
+
+/* ============ Ajustes finales buscador y videos ============ */
+.filtro-ciudad { min-width: 200px; }
+
+/* Renombrar video (highlight) */
+.vid-lapiz { background: none; color: var(--gris); padding: 2px 4px; display: grid; place-items: center; }
+.vid-lapiz:hover { color: var(--rojo); }
+.vid-edit-input { flex: 1; min-width: 0; padding: 5px 8px; background: var(--carbon-3); border: 1px solid var(--rojo); border-radius: var(--r-sm); color: var(--hueso); font-size: 13px; }
+.vid-ok { background: var(--rojo); color: #fff; border-radius: var(--r-sm); padding: 4px 10px; font-size: 13px; font-weight: 700; }

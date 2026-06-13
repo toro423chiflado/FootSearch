@@ -13,7 +13,9 @@ function calcularEdad(f) {
 export async function listar(req, res) {
   try {
     const r = await query(
-      `SELECT j.id, u.nombre, j.posicion, j.fecha_nacimiento, j.disponible, j.profesional,
+      `SELECT j.id, u.nombre, j.nombres, j.apellido_paterno, j.apellido_materno, j.nacionalidad,
+              j.posicion, j.fecha_nacimiento, j.estatura_cm, j.peso_kg, j.disponible, j.profesional,
+              j.foto_perfil, j.foto_portada,
               j.partidos, j.goles, j.asistencias, cl.nombre AS club_nombre, cl.id AS club_id
        FROM favoritos f
        JOIN jugadores j ON j.id = f.jugador_id
