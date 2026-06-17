@@ -16,6 +16,20 @@ CREATE TABLE IF NOT EXISTS codigos_club (
   creado_en   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ---------- DNIs habilitados (pool de un solo uso para jugador/cazatalentos) ----------
+-- Pool de documentos válidos cargados por el seed. Cada DNI solo sirve para
+-- registrar UNA cuenta de jugador o cazatalentos; al usarse queda marcado.
+-- Mismo patrón que codigos_club, pero para personas naturales.
+CREATE TABLE IF NOT EXISTS dni_habilitados (
+  dni         VARCHAR(8) PRIMARY KEY,        -- 8 dígitos exactos
+  usado       BOOLEAN NOT NULL DEFAULT false,
+  usado_por   UUID,                          -- usuario que lo consumió
+  usado_en    TIMESTAMPTZ,
+  creado_en   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dni_usado ON dni_habilitados(usado);
+
 -- ---------- Clubes ----------
 CREATE TABLE IF NOT EXISTS clubes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,6 +69,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE TABLE IF NOT EXISTS jugadores (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id      UUID NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
+  dni             VARCHAR(8) UNIQUE,           -- documento verificado al registrarse
   nombres         VARCHAR(80),                 -- nombres de pila
   apellido_paterno VARCHAR(60),
   apellido_materno VARCHAR(60),
@@ -85,6 +100,7 @@ CREATE TABLE IF NOT EXISTS jugadores (
 CREATE TABLE IF NOT EXISTS cazatalentos (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id  UUID NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
+  dni         VARCHAR(8) UNIQUE,               -- documento verificado al registrarse
   club_id     UUID REFERENCES clubes(id) ON DELETE SET NULL
 );
 

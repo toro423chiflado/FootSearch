@@ -38,11 +38,58 @@ export async function editarEstadisticas(req, res) {
   }
 }
 
-// GET /api/admin/jugadores  → lista compacta para localizar IDs (privado)
+// PUT /api/admin/jugadores/:id/nivel
+// Endpoint PRIVADO (header x-admin-key). Controla si un jugador es
+// AMATEUR (profesional=false) o PROFESIONAL (profesional=true).
+// Es el ÚNICO lugar donde se puede cambiar este estado (no desde el registro
+// ni desde el perfil del jugador).  body: { profesional: true | false }
+export async function editarNivel(req, res) {
+  const { profesional } = req.body;
+  if (typeof profesional !== "boolean") {
+    return res.status(400).json({ error: "'profesional' debe ser booleano (true = profesional, false = amateur)." });
+  }
+  try {
+    const j = await query("SELECT id FROM jugadores WHERE id = $1", [req.params.id]);
+    if (j.rowCount === 0) return res.status(404).json({ error: "Jugador no encontrado." });
+
+    const r = await query(
+      `UPDATE jugadores SET profesional = $1, actualizado_en = now()
+       WHERE id = $2 RETURNING id, profesional`,
+      [profesional, req.params.id]
+    );
+    return res.json({
+      ok: true,
+      jugador: r.rows[0],
+      nivel: r.rows[0].profesional ? "profesional" : "amateur",
+    });
+  } catch (e) {
+    console.error("[admin.editarNivel]", e.message);
+    return res.status(500).json({ error: "No se pudo actualizar el nivel del jugador." });
+  }
+}
+
+// GET /api/admin/dnis?estado=libres|usadas|todas&limit=200  (privado)
+// Lista los DNIs habilitados (pool de jugador/cazatalentos).
+export async function listarDnis(req, res) {
+  const { estado = "todas", limit = 200 } = req.query;
+  let cond = "";
+  if (estado === "libres") cond = "WHERE usado = false";
+  else if (estado === "usadas") cond = "WHERE usado = true";
+  try {
+    const r = await query(
+      `SELECT dni, usado FROM dni_habilitados ${cond} ORDER BY dni LIMIT $1`,
+      [Math.min(Number(limit) || 200, 1000)]
+    );
+    const total = await query("SELECT COUNT(*) FILTER (WHERE usado=false)::int libres, COUNT(*)::int total FROM dni_habilitados");
+    return res.json({ dnis: r.rows, resumen: total.rows[0] });
+  } catch (e) {
+    return res.status(500).json({ error: "Error al listar DNIs." });
+  }
+}
 export async function listarParaAdmin(req, res) {
   try {
     const r = await query(
-      `SELECT j.id, u.nombre, j.partidos, j.goles, j.asistencias, j.minutos
+      `SELECT j.id, u.nombre, j.dni, j.profesional, j.partidos, j.goles, j.asistencias, j.minutos
        FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id
        ORDER BY u.nombre`
     );

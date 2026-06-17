@@ -170,8 +170,10 @@ export function Registro({ ir, entrar }) {
     } else if (tipo === "jugador") {
       if (!f.nombres || !f.nombres.trim()) { setErr("Los nombres son obligatorios."); return; }
       if (!f.apellidoPaterno || !f.apellidoPaterno.trim()) { setErr("El apellido paterno es obligatorio."); return; }
+      if (!/^\d{8}$/.test(String(f.dni || "").trim())) { setErr("El DNI es obligatorio y debe tener 8 dígitos (ej. 11111111)."); return; }
     } else {
       if (!f.nombre || !f.nombre.trim()) { setErr("El nombre es obligatorio."); return; }
+      if (!/^\d{8}$/.test(String(f.dni || "").trim())) { setErr("El DNI es obligatorio y debe tener 8 dígitos (ej. 11111111)."); return; }
     }
     if (!f.correo) { setErr("El correo es obligatorio."); return; }
     if (!f.password || f.password.length < 6) { setErr("La contrasena debe tener al menos 6 caracteres."); return; }
@@ -179,6 +181,7 @@ export function Registro({ ir, entrar }) {
     const body = { tipo, correo: f.correo, password: f.password };
     if (tipo === "jugador") {
       Object.assign(body, {
+        dni: String(f.dni).trim(),
         nombres: f.nombres,
         apellidoPaterno: f.apellidoPaterno,
         apellidoMaterno: f.apellidoMaterno || null,
@@ -194,6 +197,7 @@ export function Registro({ ir, entrar }) {
       });
     } else if (tipo === "cazatalentos") {
       body.nombre = f.nombre;
+      body.dni = String(f.dni).trim();
       body.club = f.clubActual || null;
     } else if (tipo === "club") {
       body.nombre = f.club;
@@ -272,6 +276,13 @@ export function Registro({ ir, entrar }) {
                 </div>
               </div>
               <div className="fila">
+                <div className="campo">
+                  <label>DNI</label>
+                  <input value={f.dni || ""} onChange={set("dni")} placeholder="11111111"
+                    maxLength={8} inputMode="numeric"
+                    onInput={(e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 8); }} />
+                  <div className="ayuda">8 dígitos. Se verifica contra nuestra base de datos; sin un DNI válido no podrás registrarte.</div>
+                </div>
                 <div className="campo">
                   <label>Nacionalidad</label>
                   <select value={f.nacionalidad || ""} onChange={set("nacionalidad")}>
@@ -370,6 +381,13 @@ export function Registro({ ir, entrar }) {
             <div className="campo">
               <label>Nombre y apellido</label>
               <input value={f.nombre || ""} onChange={set("nombre")} placeholder="Ej. Maria Torres" />
+            </div>
+            <div className="campo">
+              <label>DNI</label>
+              <input value={f.dni || ""} onChange={set("dni")} placeholder="11111111"
+                maxLength={8} inputMode="numeric"
+                onInput={(e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 8); }} />
+              <div className="ayuda">8 dígitos. Se verifica contra nuestra base de datos; sin un DNI válido no podrás registrarte.</div>
             </div>
             <div className="fila">
               <div className="campo">

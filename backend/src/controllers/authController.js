@@ -51,6 +51,15 @@ export async function registrar(req, res) {
     nombre = [nombres, apellidoPaterno, apellidoMaterno].filter(Boolean).join(" ").trim();
   }
 
+  // DNI obligatorio para jugador y cazatalentos: 8 dígitos exactos (formato 11111111)
+  let dni = null;
+  if (tipo === "jugador" || tipo === "cazatalentos") {
+    dni = String(req.body.dni || "").trim();
+    if (!/^\d{8}$/.test(dni)) {
+      return res.status(400).json({ error: "El DNI es obligatorio y debe tener 8 dígitos (formato: 11111111)." });
+    }
+  }
+
   if (!nombre || !nombre.trim()) {
     return res.status(400).json({
       error: tipo === "club" ? "El nombre del club es obligatorio." : "El nombre es obligatorio.",
@@ -68,6 +77,28 @@ export async function registrar(req, res) {
     if (existe.rowCount > 0) {
       await cliente.query("ROLLBACK");
       return res.status(409).json({ error: "Ya existe una cuenta con ese correo." });
+    }
+
+    // --- Verificación de DNI (jugador / cazatalentos) contra base local ---
+    // El DNI debe existir en el pool de documentos habilitados y no haber sido usado.
+    if (tipo === "jugador" || tipo === "cazatalentos") {
+      // Bloquea la fila para evitar que dos registros usen el mismo DNI a la vez
+      const d = await cliente.query(
+        "SELECT * FROM dni_habilitados WHERE dni = $1 FOR UPDATE",
+        [dni]
+      );
+      if (d.rowCount === 0) {
+        await cliente.query("ROLLBACK");
+        return res.status(400).json({
+          error: "El DNI no está registrado en nuestra base de datos. No se puede crear la cuenta.",
+        });
+      }
+      if (d.rows[0].usado) {
+        await cliente.query("ROLLBACK");
+        return res.status(409).json({
+          error: "Ese DNI ya fue utilizado para registrar una cuenta.",
+        });
+      }
     }
 
     // --- Validación específica de CLUB: necesita un código de un solo uso ---
@@ -123,12 +154,17 @@ export async function registrar(req, res) {
       }
       await cliente.query(
         `INSERT INTO jugadores
-           (usuario_id, nombres, apellido_paterno, apellido_materno, nacionalidad,
+           (usuario_id, dni, nombres, apellido_paterno, apellido_materno, nacionalidad,
             fecha_nacimiento, posicion, pierna, estatura_cm, peso_kg, ciudad, club_id, contacto, celular)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-        [usuario.id, nombres || null, apellidoPaterno || null, apellidoMaterno || null,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+        [usuario.id, dni, nombres || null, apellidoPaterno || null, apellidoMaterno || null,
          nacionalidad || null, fechaNacimiento || null, posicion || null, pierna || null,
          estatura || null, peso || null, ciudad || null, clubId, correo.toLowerCase(), celular || null]
+      );
+      // Consume el DNI (un solo uso)
+      await cliente.query(
+        "UPDATE dni_habilitados SET usado = true, usado_por = $1, usado_en = now() WHERE dni = $2",
+        [usuario.id, dni]
       );
     } else if (tipo === "cazatalentos") {
       const { club } = req.body;
@@ -138,8 +174,13 @@ export async function registrar(req, res) {
         clubId = c.rows[0]?.id || null;
       }
       await cliente.query(
-        "INSERT INTO cazatalentos (usuario_id, club_id) VALUES ($1, $2)",
-        [usuario.id, clubId]
+        "INSERT INTO cazatalentos (usuario_id, dni, club_id) VALUES ($1, $2, $3)",
+        [usuario.id, dni, clubId]
+      );
+      // Consume el DNI (un solo uso)
+      await cliente.query(
+        "UPDATE dni_habilitados SET usado = true, usado_por = $1, usado_en = now() WHERE dni = $2",
+        [usuario.id, dni]
       );
     } else if (tipo === "club") {
       // Crea el club con el nombre dado y consume el código (un solo uso)

@@ -112,8 +112,10 @@ export async function actualizarMiPerfil(req, res) {
   const {
     nombres, apellidoPaterno, apellidoMaterno, nacionalidad,
     fechaNacimiento, posicion, estatura, peso, pierna, ciudad,
-    disponible, profesional, bio, celular,
+    disponible, bio, celular,
   } = req.body;
+  // NOTA: 'profesional' (amateur/pro) NO se acepta aquí a propósito.
+  // Solo el endpoint admin PUT /api/admin/jugadores/:id/nivel puede cambiarlo.
 
   try {
     const j = await query("SELECT id FROM jugadores WHERE usuario_id = $1", [req.usuario.id]);
@@ -132,14 +134,13 @@ export async function actualizarMiPerfil(req, res) {
          pierna     = COALESCE($9, pierna),
          ciudad     = COALESCE($10, ciudad),
          disponible = COALESCE($11, disponible),
-         profesional= COALESCE($12, profesional),
-         bio        = COALESCE($13, bio),
-         celular    = COALESCE($14, celular),
+         bio        = COALESCE($12, bio),
+         celular    = COALESCE($13, celular),
          actualizado_en = now()
-       WHERE usuario_id = $15`,
+       WHERE usuario_id = $14`,
       [nombres, apellidoPaterno, apellidoMaterno, nacionalidad,
        fechaNacimiento, posicion, estatura, peso, pierna, ciudad,
-       disponible, profesional, bio, celular, req.usuario.id]
+       disponible, bio, celular, req.usuario.id]
     );
     // Si cambió el nombre, actualizar también usuarios.nombre (para mostrar)
     if (nombres || apellidoPaterno || apellidoMaterno) {

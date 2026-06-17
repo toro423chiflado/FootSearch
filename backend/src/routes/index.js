@@ -50,7 +50,9 @@ router.post("/favoritos/:jugadorId", requiereAuth, requiereTipo("cazatalentos", 
 // ---------- ADMIN (privado, protegido por x-admin-key) ----------
 router.get("/admin/jugadores", requiereAdmin, admin.listarParaAdmin);
 router.get("/admin/licencias", requiereAdmin, admin.listarLicencias);
+router.get("/admin/dnis", requiereAdmin, admin.listarDnis);
 router.put("/admin/jugadores/:id/estadisticas", requiereAdmin, admin.editarEstadisticas);
+router.put("/admin/jugadores/:id/nivel", requiereAdmin, admin.editarNivel);
 // logros
 router.get("/admin/jugadores/:id/logros", requiereAdmin, admin.listarLogros);
 router.post("/admin/jugadores/:id/logros", requiereAdmin, admin.agregarLogro);

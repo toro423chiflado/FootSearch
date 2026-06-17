@@ -61,3 +61,58 @@ Eliminar:
 
 > Todas las peticiones llevan el header `x-admin-key: TU_CLAVE`.
 > Para POST y PUT: Body → raw → JSON.
+
+---
+
+## Controlar nivel del jugador: AMATEUR ↔ PROFESIONAL (solo admin)
+
+El estado amateur/profesional de un jugador **solo** se cambia desde aquí, con tu
+`x-admin-key`. Ni el registro ni el propio jugador pueden modificarlo: todo jugador
+nace **amateur** (`profesional = false`) y tú lo asciendes a profesional.
+
+### 1. Ubica el ID del jugador
+
+    GET http://localhost:4000/api/admin/jugadores
+    Header: x-admin-key: CLAVE
+
+La respuesta ahora incluye `dni`, `profesional` y las estadísticas de cada jugador.
+
+### 2. Cambiar el nivel
+
+    PUT http://localhost:4000/api/admin/jugadores/ID_JUGADOR/nivel
+    Header: x-admin-key: CLAVE
+    Body (raw / JSON):
+
+Hacer PROFESIONAL:
+
+    { "profesional": true }
+
+Volver a AMATEUR:
+
+    { "profesional": false }
+
+Respuesta:
+
+    { "ok": true, "jugador": { "id": "...", "profesional": true }, "nivel": "profesional" }
+
+> El campo `profesional` debe ser booleano (`true`/`false`). Cualquier otro valor da error 400.
+
+---
+
+## Consultar el pool de DNIs habilitados (solo admin)
+
+Lista los DNIs cargados en la base y su estado (libre/usado):
+
+    GET http://localhost:4000/api/admin/dnis?estado=libres   → solo disponibles
+    GET http://localhost:4000/api/admin/dnis?estado=usadas    → solo consumidos
+    GET http://localhost:4000/api/admin/dnis?estado=todas     → todos (por defecto)
+    Header: x-admin-key: CLAVE
+
+Respuesta:
+
+    {
+      "dnis": [ { "dni": "12458351", "usado": false }, ... ],
+      "resumen": { "libres": 195, "total": 200 }
+    }
+
+La lista completa de los 200 DNIs también está en **README_DNIS.md**.

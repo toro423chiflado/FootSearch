@@ -26,6 +26,27 @@ function licenciasFijas() {
   } catch { return []; }
 }
 
+// Carga el pool de DNIs habilitados (jugador / cazatalentos) desde dnis.txt
+function dnisHabilitados() {
+  try {
+    const txt = fs.readFileSync(path.join(__dirname, "dnis.txt"), "utf8");
+    return txt.split("\n").map((l) => l.trim()).filter((l) => /^\d{8}$/.test(l));
+  } catch { return []; }
+}
+
+// Inserta todos los DNIs del archivo en la tabla dni_habilitados
+export async function cargarDnisHabilitados(cliente) {
+  const dnis = dnisHabilitados();
+  if (dnis.length === 0) return [];
+  const LOTE = 200;
+  for (let i = 0; i < dnis.length; i += LOTE) {
+    const trozo = dnis.slice(i, i + LOTE);
+    const valores = trozo.map((_, k) => `($${k + 1})`).join(",");
+    await cliente.query(`INSERT INTO dni_habilitados (dni) VALUES ${valores} ON CONFLICT DO NOTHING`, trozo);
+  }
+  return dnis;
+}
+
 const fechaNac = (edad) => `${new Date().getFullYear() - edad}-06-15`;
 
 // ---- Pocos jugadores demo (estadísticas en 0; se editan por endpoint admin) ----
@@ -64,12 +85,17 @@ export async function sembrar({ gestionarConexion = true } = {}) {
   const c = await pool.connect();
   try {
     console.log("Limpiando datos previos…");
-    await c.query("TRUNCATE usuarios, clubes, codigos_club RESTART IDENTITY CASCADE");
+    await c.query("TRUNCATE usuarios, clubes, codigos_club, dni_habilitados RESTART IDENTITY CASCADE");
     if (mongoose.connection.readyState === 0) await conectarMongo();
     await MediaJugador.deleteMany({});
 
     console.log("Generando 1000 códigos de club…");
     const codigos = await generarCodigosClub(c, 1000);
+
+    console.log("Cargando pool de DNIs habilitados…");
+    const dnisPool = await cargarDnisHabilitados(c);
+    let dniIdx = 0;
+    const tomarDni = () => dnisPool[dniIdx++]; // consume el siguiente DNI libre
 
     const pass = "demo1234";
     const hash = await bcrypt.hash(pass, 10);
@@ -102,6 +128,7 @@ export async function sembrar({ gestionarConexion = true } = {}) {
     const asignacion = { "diego@demo.pe": "Atlético Cóndores FC", "andres@demo.pe": "Deportivo Manglar" };
     for (const j of JUGADORES) {
       const nombre = [j.nombres, j.apPaterno, j.apMaterno].filter(Boolean).join(" ");
+      const dni = tomarDni();
       const u = await c.query(
         "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'jugador',$3) RETURNING id",
         [j.correo, hash, nombre]
@@ -109,12 +136,13 @@ export async function sembrar({ gestionarConexion = true } = {}) {
       const clubId = asignacion[j.correo] ? clubPorNombre[asignacion[j.correo]] : null;
       const jr = await c.query(
         `INSERT INTO jugadores
-           (usuario_id, nombres, apellido_paterno, apellido_materno, nacionalidad,
+           (usuario_id, dni, nombres, apellido_paterno, apellido_materno, nacionalidad,
             fecha_nacimiento, posicion, estatura_cm, peso_kg, pierna, ciudad, club_id, disponible, profesional, bio, contacto, celular)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
-        [u.rows[0].id, j.nombres, j.apPaterno, j.apMaterno, j.nacionalidad,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
+        [u.rows[0].id, dni, j.nombres, j.apPaterno, j.apMaterno, j.nacionalidad,
          fechaNac(j.edad), j.posicion, j.estatura, j.peso, j.pierna, j.ciudad, clubId, j.disponible, j.profesional, j.bio, j.correo, j.celular || "+51 999 000 000"]
       );
+      if (dni) await c.query("UPDATE dni_habilitados SET usado=true, usado_por=$1, usado_en=now() WHERE dni=$2", [u.rows[0].id, dni]);
       const jugadorId = jr.rows[0].id;
       for (const t of j.logros) await c.query("INSERT INTO logros (jugador_id, titulo) VALUES ($1,$2)", [jugadorId, t]);
       await MediaJugador.create({ jugadorId, videos: j.videos.map((t) => ({ titulo: t, tipo: "highlight" })) });
@@ -122,11 +150,13 @@ export async function sembrar({ gestionarConexion = true } = {}) {
 
     // ---- Un cazatalentos ----
     console.log("Insertando cazatalentos demo…");
+    const dniScout = tomarDni();
     const cz = await c.query(
       "INSERT INTO usuarios (correo, password_hash, tipo, nombre) VALUES ($1,$2,'cazatalentos',$3) RETURNING id",
       ["scout@demo.pe", hash, "Ana Scout"]
     );
-    await c.query("INSERT INTO cazatalentos (usuario_id, club_id) VALUES ($1,$2)", [cz.rows[0].id, clubPorNombre["Atlético Cóndores FC"]]);
+    await c.query("INSERT INTO cazatalentos (usuario_id, dni, club_id) VALUES ($1,$2,$3)", [cz.rows[0].id, dniScout, clubPorNombre["Atlético Cóndores FC"]]);
+    if (dniScout) await c.query("UPDATE dni_habilitados SET usado=true, usado_por=$1, usado_en=now() WHERE dni=$2", [cz.rows[0].id, dniScout]);
 
     console.log("\n========================================");
     console.log("  SEED COMPLETO — usuarios de prueba");
@@ -142,6 +172,9 @@ export async function sembrar({ gestionarConexion = true } = {}) {
     codigos.slice(CLUBES.length, CLUBES.length + 6).forEach((x) => console.log("    " + x));
     const libres = await c.query("SELECT COUNT(*) FILTER (WHERE usado=false)::int n FROM codigos_club");
     console.log(`\n  Total de licencias libres: ${libres.rows[0].n} de 1000`);
+    const dniLibres = await c.query("SELECT COUNT(*) FILTER (WHERE usado=false)::int n, COUNT(*)::int t FROM dni_habilitados");
+    console.log(`\n  DNIs habilitados libres para registrar jugador/cazatalentos: ${dniLibres.rows[0].n} de ${dniLibres.rows[0].t}`);
+    console.log("  (lista completa en README_DNIS.md)");
     console.log("========================================\n");
   } catch (e) {
     console.error("Error en seed:", e.message);
